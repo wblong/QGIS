@@ -174,10 +174,10 @@ class QgsOgrProvider final: public QgsVectorDataProvider
     void loadFields();
 
     //! Find out the number of features of the whole layer
-    void recalculateFeatureCount();
+    void recalculateFeatureCount() const;
 
     //! Tell OGR, which fields to fetch in nextFeature/featureAtId (ie. which not to ignore)
-    void setRelevantFields( bool fetchGeometry, const QgsAttributeList &fetchAttributes );
+    void setRelevantFields( bool fetchGeometry, const QgsAttributeList &fetchAttributes ) const;
 
     //! Convert a QgsField to work with OGR
     static bool convertField( QgsField &field, const QTextCodec &encoding );
@@ -294,7 +294,11 @@ class QgsOgrProvider final: public QgsVectorDataProvider
     bool mValid = false;
 
     OGRwkbGeometryType mOGRGeomType = wkbUnknown;
-    long mFeaturesCounted = QgsVectorDataProvider::Uncounted;
+
+    //! Whether the next call to featureCount() should refresh the feature count
+    mutable bool mRefreshFeatureCount = true;
+
+    mutable long mFeaturesCounted = QgsVectorDataProvider::Uncounted;
 
     mutable QStringList mSubLayerList;
 
@@ -751,9 +755,10 @@ class QgsOgrProviderMetadata final: public QgsProviderMetadata
     void cleanupProvider() override;
     QList< QgsDataItemProvider * > dataItemProviders() const override;
     QgsOgrProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() ) override;
-    QVariantMap decodeUri( const QString &uri ) override;
-    QString encodeUri( const QVariantMap &parts ) override;
+    QVariantMap decodeUri( const QString &uri ) const override;
+    QString encodeUri( const QVariantMap &parts ) const override;
     QString filters( FilterType type ) override;
+    bool uriIsBlocklisted( const QString &uri ) const override;
     QgsVectorLayerExporter::ExportError createEmptyLayer(
       const QString &uri,
       const QgsFields &fields,

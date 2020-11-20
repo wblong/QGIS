@@ -43,6 +43,7 @@ class QgsEptProvider: public QgsPointCloudDataProvider
     QgsCoordinateReferenceSystem crs() const override;
 
     QgsRectangle extent() const override;
+    QgsPointCloudAttributeCollection attributes() const override;
 
     bool isValid() const override;
 
@@ -61,10 +62,15 @@ class QgsEptProviderMetadata : public QgsProviderMetadata
 {
   public:
     QgsEptProviderMetadata();
+    QgsProviderMetadata::ProviderMetadataCapabilities capabilities() const override;
     QgsEptProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() ) override;
     QList< QgsDataItemProvider * > dataItemProviders() const override;
-    QString encodeUri( const QVariantMap &parts ) override;
-    QVariantMap decodeUri( const QString &uri ) override;
+    int priorityForUri( const QString &uri ) const override;
+    QList< QgsMapLayerType > validLayerTypesForUri( const QString &uri ) const override;
+    bool uriIsBlocklisted( const QString &uri ) const override;
+    QString encodeUri( const QVariantMap &parts ) const override;
+    QVariantMap decodeUri( const QString &uri ) const override;
+    QString filters( FilterType type ) override;
 };
 
 ///@endcond

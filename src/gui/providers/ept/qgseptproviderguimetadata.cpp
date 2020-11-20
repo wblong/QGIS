@@ -16,29 +16,13 @@
  ***************************************************************************/
 
 #include "qgsapplication.h"
-#include "qgssourceselectprovider.h"
-#include "qgseptsourceselect.h"
 #include "qgseptproviderguimetadata.h"
 #include "qgseptdataitemguiprovider.h"
 
 ///@cond PRIVATE
 
-class QgsEptSourceSelectProvider : public QgsSourceSelectProvider
-{
-  public:
-
-    QString providerKey() const override { return QStringLiteral( "pointcloud" ); }
-    QString text() const override { return QObject::tr( "Point Cloud" ); }
-    int ordering() const override { return QgsSourceSelectProvider::OrderLocalProvider + 25; }
-    QIcon icon() const override { return QgsApplication::getThemeIcon( QStringLiteral( "/mActionAddPointCloudLayer.svg" ) ); }
-    QgsAbstractDataSourceWidget *createDataSourceWidget( QWidget *parent = nullptr, Qt::WindowFlags fl = Qt::Widget, QgsProviderRegistry::WidgetMode widgetMode = QgsProviderRegistry::WidgetMode::Embedded ) const override
-    {
-      return new QgsEptSourceSelect( parent, fl, widgetMode );
-    }
-};
-
 QgsEptProviderGuiMetadata::QgsEptProviderGuiMetadata()
-  : QgsProviderGuiMetadata( QStringLiteral( "etp" ) )
+  : QgsProviderGuiMetadata( QStringLiteral( "ept" ) )
 {
 }
 
@@ -46,13 +30,6 @@ QList<QgsDataItemGuiProvider *> QgsEptProviderGuiMetadata::dataItemGuiProviders(
 {
   return QList<QgsDataItemGuiProvider *>()
          << new QgsEptDataItemGuiProvider;
-}
-
-QList<QgsSourceSelectProvider *> QgsEptProviderGuiMetadata::sourceSelectProviders()
-{
-  QList<QgsSourceSelectProvider *> providers;
-  providers << new QgsEptSourceSelectProvider;
-  return providers;
 }
 
 ///@endcond

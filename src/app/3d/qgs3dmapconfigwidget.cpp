@@ -75,6 +75,11 @@ Qgs3DMapConfigWidget::Qgs3DMapConfigWidget( Qgs3DMapSettings *map, QgsMapCanvas 
   spinMapResolution->setClearValue( 512 );
   spinScreenError->setClearValue( 3 );
   spinGroundError->setClearValue( 1 );
+  terrainElevationOffsetSpinBox->setClearValue( 0.0 );
+  edlStrengthSpinBox->setClearValue( 1000 );
+  edlDistanceSpinBox->setClearValue( 1 );
+  mDebugShadowMapSizeSpinBox->setClearValue( 0.1 );
+  mDebugDepthMapSizeSpinBox->setClearValue( 0.1 );
 
   cboTerrainLayer->setAllowEmptyLayer( true );
   cboTerrainLayer->setFilters( QgsMapLayerProxyModel::RasterLayer );
@@ -124,6 +129,7 @@ Qgs3DMapConfigWidget::Qgs3DMapConfigWidget( Qgs3DMapSettings *map, QgsMapCanvas 
   spinMapResolution->setValue( mMap->mapTileResolution() );
   spinScreenError->setValue( mMap->maxTerrainScreenError() );
   spinGroundError->setValue( mMap->maxTerrainGroundError() );
+  terrainElevationOffsetSpinBox->setValue( mMap->terrainElevationOffset() );
   chkShowLabels->setChecked( mMap->showLabels() );
   chkShowTileInfo->setChecked( mMap->showTerrainTilesInfo() );
   chkShowBoundingBoxes->setChecked( mMap->showTerrainBoundingBoxes() );
@@ -161,6 +167,29 @@ Qgs3DMapConfigWidget::Qgs3DMapConfigWidget( Qgs3DMapSettings *map, QgsMapCanvas 
   connect( widgetLights, &QgsLightsWidget::lightsRemoved, this, &Qgs3DMapConfigWidget::validate );
 
   groupShadowRendering->setChecked( map->shadowSettings().renderShadows() );
+
+  edlGroupBox->setChecked( map->eyeDomeLightingEnabled() );
+  edlStrengthSpinBox->setValue( map->eyeDomeLightingStrength() );
+  edlDistanceSpinBox->setValue( map->eyeDomeLightingDistance() );
+
+  mDebugShadowMapCornerComboBox->addItem( tr( "Top Left" ) );
+  mDebugShadowMapCornerComboBox->addItem( tr( "Top Right" ) );
+  mDebugShadowMapCornerComboBox->addItem( tr( "Bottom Left" ) );
+  mDebugShadowMapCornerComboBox->addItem( tr( "Bottom Right" ) );
+
+  mDebugDepthMapCornerComboBox->addItem( tr( "Top Left" ) );
+  mDebugDepthMapCornerComboBox->addItem( tr( "Top Right" ) );
+  mDebugDepthMapCornerComboBox->addItem( tr( "Bottom Left" ) );
+  mDebugDepthMapCornerComboBox->addItem( tr( "Bottom Right" ) );
+
+  mDebugShadowMapGroupBox->setChecked( map->debugShadowMapEnabled() );
+
+  mDebugShadowMapCornerComboBox->setCurrentIndex( static_cast<int>( map->debugShadowMapCorner() ) );
+  mDebugShadowMapSizeSpinBox->setValue( map->debugShadowMapSize() );
+
+  mDebugDepthMapGroupBox->setChecked( map->debugDepthMapEnabled() );
+  mDebugDepthMapCornerComboBox->setCurrentIndex( static_cast<int>( map->debugDepthMapCorner() ) );
+  mDebugDepthMapSizeSpinBox->setValue( map->debugDepthMapSize() );
 }
 
 Qgs3DMapConfigWidget::~Qgs3DMapConfigWidget()
@@ -268,6 +297,7 @@ void Qgs3DMapConfigWidget::apply()
   mMap->setMapTileResolution( spinMapResolution->value() );
   mMap->setMaxTerrainScreenError( spinScreenError->value() );
   mMap->setMaxTerrainGroundError( spinGroundError->value() );
+  mMap->setTerrainElevationOffset( terrainElevationOffsetSpinBox->value() );
   mMap->setShowLabels( chkShowLabels->isChecked() );
   mMap->setShowTerrainTilesInfo( chkShowTileInfo->isChecked() );
   mMap->setShowTerrainBoundingBoxes( chkShowBoundingBoxes->isChecked() );
@@ -286,6 +316,13 @@ void Qgs3DMapConfigWidget::apply()
   QgsShadowSettings shadowSettings = mShadowSetiingsWidget->toShadowSettings();
   shadowSettings.setRenderShadows( groupShadowRendering->isChecked() );
   mMap->setShadowSettings( shadowSettings );
+
+  mMap->setEyeDomeLightingEnabled( edlGroupBox->isChecked() );
+  mMap->setEyeDomeLightingStrength( edlStrengthSpinBox->value() );
+  mMap->setEyeDomeLightingDistance( edlDistanceSpinBox->value() );
+
+  mMap->setDebugDepthMapSettings( mDebugDepthMapGroupBox->isChecked(), static_cast<Qt::Corner>( mDebugDepthMapCornerComboBox->currentIndex() ), mDebugDepthMapSizeSpinBox->value() );
+  mMap->setDebugShadowMapSettings( mDebugShadowMapGroupBox->isChecked(), static_cast<Qt::Corner>( mDebugShadowMapCornerComboBox->currentIndex() ), mDebugShadowMapSizeSpinBox->value() );
 }
 
 void Qgs3DMapConfigWidget::onTerrainTypeChanged()

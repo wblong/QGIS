@@ -29,13 +29,12 @@ QgsPointCloudDataProvider::QgsPointCloudDataProvider(
 
 QgsPointCloudDataProvider::~QgsPointCloudDataProvider() = default;
 
-
-QgsRectangle QgsPointCloudDataProvider::extent() const
+QgsPointCloudDataProvider::Capabilities QgsPointCloudDataProvider::capabilities() const
 {
-  return index()->extent();
+  return QgsPointCloudDataProvider::NoCapabilities;
 }
 
-bool QgsPointCloudDataProvider::isValid() const
+QgsPointCloudRenderer *QgsPointCloudDataProvider::createRenderer( const QVariantMap & ) const
 {
-  return mIsValid;
+  return nullptr;
 }

@@ -400,7 +400,7 @@ QList<QgsDataItemProvider *> QgsAfsProviderMetadata::dataItemProviders() const
   return providers;
 }
 
-QVariantMap QgsAfsProviderMetadata::decodeUri( const QString &uri )
+QVariantMap QgsAfsProviderMetadata::decodeUri( const QString &uri ) const
 {
   QgsDataSourceUri dsUri = QgsDataSourceUri( uri );
 
@@ -436,7 +436,7 @@ QVariantMap QgsAfsProviderMetadata::decodeUri( const QString &uri )
   return components;
 }
 
-QString QgsAfsProviderMetadata::encodeUri( const QVariantMap &parts )
+QString QgsAfsProviderMetadata::encodeUri( const QVariantMap &parts ) const
 {
   QgsDataSourceUri dsUri;
   dsUri.setParam( QStringLiteral( "url" ), parts.value( QStringLiteral( "url" ) ).toString() );
@@ -459,7 +459,7 @@ QString QgsAfsProviderMetadata::encodeUri( const QVariantMap &parts )
   {
     dsUri.setAuthConfigId( parts.value( QStringLiteral( "authcfg" ) ).toString() );
   }
-  return dsUri.uri();
+  return dsUri.uri( false );
 }
 
 QgsAfsProvider *QgsAfsProviderMetadata::createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags )

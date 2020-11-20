@@ -32,6 +32,7 @@
         <file>flags/pt_PT.svg</file>
         <file>flags/ro.svg</file>
         <file>flags/ru.svg</file>
+        <file>flags/sc.svg</file>
         <file>flags/sk.svg</file>
         <file>flags/sv.svg</file>
         <file>flags/sw.svg</file>
@@ -858,6 +859,7 @@
         <file>themes/default/mIconModelInput.svg</file>
         <file>themes/default/mIndicatorTemporal.svg</file>
         <file>themes/default/mIndicatorTimeFromProject.svg</file>
+        <file>themes/default/mIndicatorOffline.svg</file>
         <file>themes/default/temporal_navigation/back.svg</file>
         <file>themes/default/temporal_navigation/forward.svg</file>
         <file>themes/default/temporal_navigation/next.svg</file>

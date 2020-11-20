@@ -24,9 +24,13 @@
 #include <QJsonObject>
 #include <QTime>
 #include <QtDebug>
+#include <QQueue>
 
 #include "qgseptdecoder.h"
 #include "qgscoordinatereferencesystem.h"
+#include "qgspointcloudrequest.h"
+#include "qgspointcloudattribute.h"
+#include "qgslogger.h"
 
 ///@cond PRIVATE
 
@@ -81,8 +85,9 @@ bool QgsEptPointCloudIndex::load( const QString &fileName )
   mZMax = bounds_conforming[5].toDouble();
 
   QJsonArray schemaArray = result.value( QLatin1String( "schema" ) ).toArray();
+  QgsPointCloudAttributeCollection attributes;
 
-  mPointRecordSize = 0;
+
   for ( QJsonValue schemaItem : schemaArray )
   {
     QJsonObject schemaObj = schemaItem.toObject();
@@ -90,7 +95,32 @@ bool QgsEptPointCloudIndex::load( const QString &fileName )
     QString type = schemaObj.value( QLatin1String( "type" ) ).toString();
 
     int size = schemaObj.value( QLatin1String( "size" ) ).toInt();
-    mPointRecordSize += size;
+
+    if ( type == QStringLiteral( "float" ) && ( size == 4 ) )
+    {
+      attributes.push_back( QgsPointCloudAttribute( name, QgsPointCloudAttribute::Float ) );
+    }
+    else if ( type == QStringLiteral( "float" ) && ( size == 8 ) )
+    {
+      attributes.push_back( QgsPointCloudAttribute( name, QgsPointCloudAttribute::Double ) );
+    }
+    else if ( size == 1 )
+    {
+      attributes.push_back( QgsPointCloudAttribute( name, QgsPointCloudAttribute::Char ) );
+    }
+    else if ( size == 2 )
+    {
+      attributes.push_back( QgsPointCloudAttribute( name, QgsPointCloudAttribute::Short ) );
+    }
+    else if ( size == 4 )
+    {
+      attributes.push_back( QgsPointCloudAttribute( name, QgsPointCloudAttribute::Int32 ) );
+    }
+    else
+    {
+      // unknown attribute type
+      return false;
+    }
 
     float scale = 1.f;
     if ( schemaObj.contains( "scale" ) )
@@ -117,10 +147,7 @@ bool QgsEptPointCloudIndex::load( const QString &fileName )
     }
     // TODO: can parse also stats: "count", "minimum", "maximum", "mean", "stddev", "variance"
   }
-
-  // There seems to be a bug in Entwine: https://github.com/connormanning/entwine/issues/240
-  // point records for X,Y,Z seem to be written as 64-bit doubles even if schema says they are 32-bit ints
-  mPointRecordSize += 3 * 4;
+  setAttributes( attributes );
 
   // save mRootBounds
 
@@ -142,62 +169,42 @@ bool QgsEptPointCloudIndex::load( const QString &fileName )
                 );
 
 
+#ifdef QGIS_DEBUG
   double dx = xmax - xmin, dy = ymax - ymin, dz = zmax - zmin;
-  qDebug() << "lvl0 node size in CRS units:" << dx << dy << dz;   // all dims should be the same
-  qDebug() << "res at lvl0" << dx / mSpan;
-  qDebug() << "res at lvl1" << dx / mSpan / 2;
-  qDebug() << "res at lvl2" << dx / mSpan / 4 << "with node size" << dx / 4;
+  QgsDebugMsgLevel( QStringLiteral( "lvl0 node size in CRS units: %1 %2 %3" ).arg( dx ).arg( dy ).arg( dz ), 2 );    // all dims should be the same
+  QgsDebugMsgLevel( QStringLiteral( "res at lvl0 %1" ).arg( dx / mSpan ), 2 );
+  QgsDebugMsgLevel( QStringLiteral( "res at lvl1 %1" ).arg( dx / mSpan / 2 ), 2 );
+  QgsDebugMsgLevel( QStringLiteral( "res at lvl2 %1 with node size %2" ).arg( dx / mSpan / 4 ).arg( dx / 4 ), 2 );
+#endif
 
   // load hierarchy
-
-  QFile fH( QStringLiteral( "%1/ept-hierarchy/0-0-0-0.json" ).arg( mDirectory ) );
-  if ( !fH.open( QIODevice::ReadOnly ) )
-    return false;
-
-  QByteArray dataJsonH = fH.readAll();
-  QJsonParseError errH;
-  QJsonDocument docH = QJsonDocument::fromJson( dataJsonH, &errH );
-  if ( errH.error != QJsonParseError::NoError )
-    return false;
-
-  QJsonObject rootHObj = docH.object();
-  for ( auto it = rootHObj.constBegin(); it != rootHObj.constEnd(); ++it )
-  {
-    QString nodeIdStr = it.key();
-    int nodePointCount = it.value().toInt();
-    IndexedPointCloudNode nodeId = IndexedPointCloudNode::fromString( nodeIdStr );
-    mHierarchy[nodeId] = nodePointCount;
-  }
-
-  return true;
+  return loadHierarchy();
 }
 
-QVector<qint32> QgsEptPointCloudIndex::nodePositionDataAsInt32( const IndexedPointCloudNode &n )
+QgsPointCloudBlock *QgsEptPointCloudIndex::nodeData( const IndexedPointCloudNode &n, const QgsPointCloudRequest &request )
 {
-  Q_ASSERT( mHierarchy.contains( n ) );
+  if ( !mHierarchy.contains( n ) )
+    return nullptr;
+
   if ( mDataType == "binary" )
   {
     QString filename = QString( "%1/ept-data/%2.bin" ).arg( mDirectory ).arg( n.toString() );
-    Q_ASSERT( QFile::exists( filename ) );
-    return QgsEptDecoder::decompressBinary( filename, mPointRecordSize );
+    return QgsEptDecoder::decompressBinary( filename, attributes(), request.attributes() );
   }
   else if ( mDataType == "zstandard" )
   {
     QString filename = QString( "%1/ept-data/%2.zst" ).arg( mDirectory ).arg( n.toString() );
-    Q_ASSERT( QFile::exists( filename ) );
-    return QgsEptDecoder::decompressZStandard( filename, mPointRecordSize );
+    return QgsEptDecoder::decompressZStandard( filename, attributes(), request.attributes() );
   }
   else if ( mDataType == "laszip" )
   {
     QString filename = QString( "%1/ept-data/%2.laz" ).arg( mDirectory ).arg( n.toString() );
-    Q_ASSERT( QFile::exists( filename ) );
-    return QgsEptDecoder::decompressLaz( filename );
+    return QgsEptDecoder::decompressLaz( filename, attributes(), request.attributes() );
   }
   else
   {
-    Q_ASSERT( false );  // unsupported
+    return nullptr;  // unsupported
   }
-  return QVector<qint32>();
 }
 
 QgsCoordinateReferenceSystem QgsEptPointCloudIndex::crs() const
@@ -205,33 +212,46 @@ QgsCoordinateReferenceSystem QgsEptPointCloudIndex::crs() const
   return QgsCoordinateReferenceSystem::fromWkt( mWkt );
 }
 
-QVector<char> QgsEptPointCloudIndex::nodeClassesDataAsChar( const IndexedPointCloudNode &n )
+bool QgsEptPointCloudIndex::loadHierarchy()
 {
-  Q_ASSERT( mHierarchy.contains( n ) );
-  // int count = mHierarchy[n];
+  QQueue<QString> queue;
+  queue.enqueue( QStringLiteral( "0-0-0-0" ) );
+  while ( !queue.isEmpty() )
+  {
+    const QString filename = QStringLiteral( "%1/ept-hierarchy/%2.json" ).arg( mDirectory ).arg( queue.dequeue() );
+    QFile fH( filename );
+    if ( !fH.open( QIODevice::ReadOnly ) )
+    {
+      QgsDebugMsgLevel( QStringLiteral( "unable to read hierarchy from file %1" ).arg( filename ), 2 );
+      return false;
+    }
 
-  if ( mDataType == "binary" )
-  {
-    // TODO: ugly me... reading same file twice :vomit:
-    QString filename = QString( "%1/ept-data/%2.bin" ).arg( mDirectory ).arg( n.toString() );
-    Q_ASSERT( QFile::exists( filename ) );
-    return QgsEptDecoder::decompressBinaryClasses( filename, mPointRecordSize );
+    QByteArray dataJsonH = fH.readAll();
+    QJsonParseError errH;
+    QJsonDocument docH = QJsonDocument::fromJson( dataJsonH, &errH );
+    if ( errH.error != QJsonParseError::NoError )
+    {
+      QgsDebugMsgLevel( QStringLiteral( "QJsonParseError when reading hierarchy from file %1" ).arg( filename ), 2 );
+      return false;
+    }
+
+    QJsonObject rootHObj = docH.object();
+    for ( auto it = rootHObj.constBegin(); it != rootHObj.constEnd(); ++it )
+    {
+      QString nodeIdStr = it.key();
+      int nodePointCount = it.value().toInt();
+      if ( nodePointCount < 0 )
+      {
+        queue.enqueue( nodeIdStr );
+      }
+      else
+      {
+        IndexedPointCloudNode nodeId = IndexedPointCloudNode::fromString( nodeIdStr );
+        mHierarchy[nodeId] = nodePointCount;
+      }
+    }
   }
-  else if ( mDataType == "zstandard" )
-  {
-    //TODO
-    Q_ASSERT( false );
-  }
-  else if ( mDataType == "laszip" )
-  {
-    //TODO
-    Q_ASSERT( false );
-  }
-  else
-  {
-    Q_ASSERT( false );  // unsupported
-  }
-  return QVector<char>();
+  return true;
 }
 
 ///@endcond

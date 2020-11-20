@@ -29,7 +29,7 @@ class QgsEptDataItemGuiProvider : public QObject, public QgsDataItemGuiProvider
     Q_OBJECT
   public:
 
-    QString name() override { return QStringLiteral( "Point Cloud" ); }
+    QString name() override { return QStringLiteral( "ept" ); }
 
     void populateContextMenu( QgsDataItem *item, QMenu *menu,
                               const QList<QgsDataItem *> &selectedItems, QgsDataItemGuiContext context ) override;

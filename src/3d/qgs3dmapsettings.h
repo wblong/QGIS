@@ -264,6 +264,18 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
     float maxTerrainGroundError() const;
 
     /**
+     * Sets the terrain elevation offset (used to move the terrain up or down)
+     * \see terrainElevationOffset()
+     * \since QGIS 3.18
+     */
+    void setTerrainElevationOffset( float offset );
+
+    /**
+     * Returns the elevation offset of the terrain (used to move the terrain up or down)
+     */
+    float terrainElevationOffset() const { return mTerrainElevationOffset; }
+
+    /**
      * Sets terrain generator. It takes care of producing terrain tiles from the input data.
      * Takes ownership of the generator
      */
@@ -361,6 +373,59 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
     void setShowLabels( bool enabled );
     //! Returns whether to display labels on terrain tiles
     bool showLabels() const { return mShowLabels; }
+
+    /**
+    * Sets whether eye dome lighting will be used
+    * \see eyeDomeLightingEnabled()
+    * \since QGIS 3.18
+    */
+    void setEyeDomeLightingEnabled( bool enabled );
+    //! Returns whether eye dome lighting is used
+    bool eyeDomeLightingEnabled() const { return mEyeDomeLightingEnabled; }
+
+    /**
+     * Sets the eye dome lighting strength value
+     * \see eyeDomeLightingStrength()
+     * \since QGIS 3.18
+     */
+    void setEyeDomeLightingStrength( double strength );
+    //! Returns the eye dome lighting strength value
+    double eyeDomeLightingStrength() const { return mEyeDomeLightingStrength; }
+
+    /**
+     * Sets the eye dome lighting distance value (contributes to the contrast of the image
+     * \see eyeDomeLightingDistance()
+     * \since QGIS 3.18
+     */
+    void setEyeDomeLightingDistance( int distance );
+    //! Returns the eye dome lighting distance value (contributes to the contrast of the image)
+    int eyeDomeLightingDistance() const { return mEyeDomeLightingDistance; }
+
+    /**
+     * Sets the debugging settings of the shadow map
+     * \see debugShadowMapEnabled() debugShadowMapCorner() debugShadowMapSize()
+     * \since QGIS 3.18
+     */
+    void setDebugShadowMapSettings( bool enabled, Qt::Corner corner, double size );
+    //! Returns whether the shadow map debugging is enabled
+    bool debugShadowMapEnabled() const { return mDebugShadowMapEnabled; }
+    //! Returns the corner where the shadow map preview is displayed
+    Qt::Corner debugShadowMapCorner() const { return mDebugShadowMapCorner; }
+    //! Returns the size of the shadow map preview
+    double debugShadowMapSize() const { return mDebugShadowMapSize; }
+
+    /**
+     * Sets the debugging settings of the depth map
+     * \see debugDepthMapEnabled() debugDepthMapCorner() debugDepthMapSize()
+     * \since QGIS 3.18
+     */
+    void setDebugDepthMapSettings( bool enabled, Qt::Corner corner, double size );
+    //! Returns whether the shadow map debugging is enabled
+    bool debugDepthMapEnabled() const { return mDebugDepthMapEnabled; }
+    //! Returns the corner where the shadow map preview is displayed
+    Qt::Corner debugDepthMapCorner() const { return mDebugDepthMapCorner; }
+    //! Returns the size of the shadow map preview
+    double debugDepthMapSize() const { return mDebugDepthMapSize; }
 
     /**
      * Returns list of point lights defined in the scene
@@ -489,6 +554,12 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
     void maxTerrainGroundErrorChanged();
 
     /**
+     * Emitted when the terrain elevation offset is changed
+     * \since QGIS 3.16
+     */
+    void terrainElevationOffsetChanged( float newElevation );
+
+    /**
      * Emitted when terrain shading enabled flag or terrain shading material has changed
      * \since QGIS 3.6
      */
@@ -525,6 +596,36 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
 
     //! Emitted when the flag whether labels are displayed on terrain tiles has changed
     void showLabelsChanged();
+
+    /**
+     * Emitted when the flag whether eye dome lighting is used has changed
+     * \since QGIS 3.18
+     */
+    void eyeDomeLightingEnabledChanged();
+
+    /**
+     * Emitted when the eye dome lighting strength has changed
+     * \since QGIS 3.18
+     */
+    void eyeDomeLightingStrengthChanged();
+
+    /**
+     * Emitted when the eye dome lighting distance has changed
+     * \since QGIS 3.18
+     */
+    void eyeDomeLightingDistanceChanged();
+
+    /**
+     * Emitted when shadow map debugging has changed
+     * \since QGIS 3.18
+     */
+    void debugShadowMapSettingsChanged();
+
+    /**
+     * Emitted when depth map debugging has changed
+     * \since QGIS 3.18
+     */
+    void debugDepthMapSettingsChanged();
 
     /**
      * Emitted when the list of point lights changes
@@ -572,6 +673,7 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
     int mMapTileResolution = 512;   //!< Size of map textures of tiles in pixels (width/height)
     float mMaxTerrainScreenError = 3.f;   //!< Maximum allowed terrain error in pixels (determines when tiles are switched to more detailed ones)
     float mMaxTerrainGroundError = 1.f;  //!< Maximum allowed horizontal map error in map units (determines how many zoom levels will be used)
+    float mTerrainElevationOffset = 0.0f; //!< Terrain elevation offset (used to adjust the position of the terrain and move it up and down)
     bool mTerrainShadingEnabled = false;   //!< Whether terrain should be shaded taking lights into account
     QgsPhongMaterialSettings mTerrainShadingMaterial;  //!< Material to use for the terrain (if shading is enabled). Diffuse color is ignored.
     QString mTerrainMapTheme;  //!< Name of map theme used for terrain's texture (empty means use the current map theme)
@@ -595,6 +697,18 @@ class _3D_EXPORT Qgs3DMapSettings : public QObject, public QgsTemporalRangeObjec
     bool mIsSkyboxEnabled = false;  //!< Whether the skybox is enabled
     QgsSkyboxSettings mSkyboxSettings; //!< Skybox related configuration
     QgsShadowSettings mShadowSettings; //!< Shadow rendering related settings
+
+    bool mEyeDomeLightingEnabled = false;
+    double mEyeDomeLightingStrength = 1000.0;
+    int mEyeDomeLightingDistance = 1;
+
+    bool mDebugShadowMapEnabled = false;
+    Qt::Corner mDebugShadowMapCorner = Qt::Corner::TopLeftCorner;
+    double mDebugShadowMapSize = 0.2;
+
+    bool mDebugDepthMapEnabled = false;
+    Qt::Corner mDebugDepthMapCorner = Qt::Corner::TopRightCorner;
+    double mDebugDepthMapSize = 0.2;
 };
 
 

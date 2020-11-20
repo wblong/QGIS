@@ -90,6 +90,7 @@ class CORE_EXPORT QgsMapLayer : public QObject
     Q_PROPERTY( QgsCoordinateReferenceSystem crs READ crs WRITE setCrs NOTIFY crsChanged )
     Q_PROPERTY( QgsMapLayerType type READ type CONSTANT )
     Q_PROPERTY( bool isValid READ isValid NOTIFY isValidChanged )
+    Q_PROPERTY( double opacity READ opacity WRITE setOpacity NOTIFY opacityChanged )
 
 #ifdef SIP_RUN
     SIP_CONVERT_TO_SUBCLASS_CODE
@@ -152,6 +153,7 @@ class CORE_EXPORT QgsMapLayer : public QObject
       Identifiable = 1 << 0, //!< If the layer is identifiable using the identify map tool and as a WMS layer.
       Removable = 1 << 1,    //!< If the layer can be removed from the project. The layer will not be removable from the legend menu entry but can still be removed with an API call.
       Searchable = 1 << 2,   //!< Only for vector-layer, determines if the layer is used in the 'search all layers' locator.
+      Private = 1 << 3,       //!< Determines if the layer is meant to be exposed to the GUI, i.e. visible in the layer legend tree.
     };
     Q_ENUM( LayerFlag )
     Q_DECLARE_FLAGS( LayerFlags, LayerFlag )
@@ -472,6 +474,26 @@ class CORE_EXPORT QgsMapLayer : public QObject
      * \see setBlendMode()
     */
     QPainter::CompositionMode blendMode() const;
+
+    /**
+     * Sets the \a opacity for the layer, where \a opacity is a value between 0 (totally transparent)
+     * and 1.0 (fully opaque).
+     * \see opacity()
+     * \see opacityChanged()
+     * \note Prior to QGIS 3.18, this method was available for vector layers only
+     * \since QGIS 3.18
+     */
+    virtual void setOpacity( double opacity );
+
+    /**
+     * Returns the opacity for the layer, where opacity is a value between 0 (totally transparent)
+     * and 1.0 (fully opaque).
+     * \see setOpacity()
+     * \see opacityChanged()
+     * \note Prior to QGIS 3.18, this method was available for vector layers only
+     * \since QGIS 3.18
+     */
+    virtual double opacity() const;
 
     //! Returns if this layer is read only.
     bool readOnly() const { return isReadOnly(); }
@@ -1337,6 +1359,16 @@ class CORE_EXPORT QgsMapLayer : public QObject
     void blendModeChanged( QPainter::CompositionMode blendMode );
 
     /**
+     * Emitted when the layer's opacity is changed, where \a opacity is a value between 0 (transparent)
+     * and 1 (opaque).
+     * \see setOpacity()
+     * \see opacity()
+     * \note Prior to QGIS 3.18, this signal was available for vector layers only
+     * \since QGIS 3.18
+     */
+    void opacityChanged( double opacity );
+
+    /**
      * Signal emitted when renderer is changed.
      * \see styleChanged()
     */
@@ -1428,6 +1460,12 @@ class CORE_EXPORT QgsMapLayer : public QObject
      */
     void isValidChanged();
 
+    /**
+     * Emitted when a custom property of the layer has been changed or removed.
+     *
+     * \since QGIS 3.18
+     */
+    void customPropertyChanged( const QString &key );
 
   private slots:
 
@@ -1598,6 +1636,13 @@ class CORE_EXPORT QgsMapLayer : public QObject
      * \since QGIS 3.10
      */
     bool mShouldValidateCrs = true;
+
+    /**
+     * Layer opacity.
+     *
+     * \since QGIS 3.18
+     */
+    double mLayerOpacity = 1.0;
 
   private:
 

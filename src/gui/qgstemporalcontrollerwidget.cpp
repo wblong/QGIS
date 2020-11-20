@@ -283,7 +283,7 @@ void QgsTemporalControllerWidget::updateTemporalExtent()
                                     mEndDateTime->dateTime() );
   mNavigationObject->setTemporalExtents( temporalExtent );
   mSlider->setRange( 0, mNavigationObject->totalFrameCount() - 1 );
-  mSlider->setValue( 0 );
+  mSlider->setValue( mNavigationObject->currentFrameNumber() );
 }
 
 void QgsTemporalControllerWidget::updateFrameDuration()
@@ -296,9 +296,11 @@ void QgsTemporalControllerWidget::updateFrameDuration()
   QgsProject::instance()->timeSettings()->setTimeStep( mStepSpinBox->value() );
 
   if ( !mBlockFrameDurationUpdates )
+  {
     mNavigationObject->setFrameDuration( QgsInterval( QgsProject::instance()->timeSettings()->timeStep(),
                                          QgsProject::instance()->timeSettings()->timeStepUnit() ) );
-
+    mSlider->setValue( mNavigationObject->currentFrameNumber() );
+  }
   mSlider->setRange( 0, mNavigationObject->totalFrameCount() - 1 );
 }
 
@@ -424,7 +426,12 @@ void QgsTemporalControllerWidget::firstTemporalLayerLoaded( QgsMapLayer *layer )
 
   QgsMeshLayer *meshLayer = qobject_cast<QgsMeshLayer *>( layer );
   if ( meshLayer )
+  {
+    mBlockFrameDurationUpdates++;
     setTimeStep( meshLayer->firstValidTimeStep() );
+    mBlockFrameDurationUpdates--;
+    updateFrameDuration();
+  }
 }
 
 void QgsTemporalControllerWidget::onProjectCleared()
@@ -434,9 +441,9 @@ void QgsTemporalControllerWidget::onProjectCleared()
   mNavigationObject->setNavigationMode( QgsTemporalNavigationObject::NavigationOff );
   setWidgetStateFromNavigationMode( QgsTemporalNavigationObject::NavigationOff );
 
-  whileBlocking( mStartDateTime )->setDateTime( QDateTime( QDate::currentDate(), QTime( 0, 0, 0, Qt::UTC ) ) );
+  whileBlocking( mStartDateTime )->setDateTime( QDateTime( QDate::currentDate(), QTime( 0, 0, 0 ), Qt::UTC ) );
   whileBlocking( mEndDateTime )->setDateTime( mStartDateTime->dateTime() );
-  whileBlocking( mFixedRangeStartDateTime )->setDateTime( QDateTime( QDate::currentDate(), QTime( 0, 0, 0, Qt::UTC ) ) );
+  whileBlocking( mFixedRangeStartDateTime )->setDateTime( QDateTime( QDate::currentDate(), QTime( 0, 0, 0 ), Qt::UTC ) );
   whileBlocking( mFixedRangeEndDateTime )->setDateTime( mStartDateTime->dateTime() );
   updateTemporalExtent();
   mTimeStepsComboBox->setCurrentIndex( mTimeStepsComboBox->findData( QgsUnitTypes::TemporalHours ) );

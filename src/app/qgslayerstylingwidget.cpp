@@ -57,8 +57,6 @@
 #ifdef HAVE_3D
 #include "qgsvectorlayer3drendererwidget.h"
 #include "qgsmeshlayer3drendererwidget.h"
-
-#include "qgspointcloudlayer3drenderer.h" // TODO remove
 #endif
 
 
@@ -146,17 +144,6 @@ void QgsLayerStylingWidget::setLayer( QgsMapLayer *layer )
   if ( layer == mCurrentLayer )
     return;
 
-#ifdef HAVE_3D
-  QgsPointCloudLayer *pcLayer = qobject_cast<QgsPointCloudLayer *>( layer );
-  if ( pcLayer )
-  {
-    //TODO remove this ugly hack!
-    QgsPointCloudLayer3DRenderer *r = new QgsPointCloudLayer3DRenderer();
-    r->setLayer( pcLayer );
-    r->resolveReferences( *QgsProject::instance() );
-    pcLayer->setRenderer3D( r );
-  }
-#endif
 
   // when current layer is changed, apply the main panel stack to allow it to gracefully clean up
   mWidgetStack->acceptAllPanels();
@@ -267,10 +254,6 @@ void QgsLayerStylingWidget::setLayer( QgsMapLayer *layer )
     }
 
     case QgsMapLayerType::PointCloudLayer:
-    {
-      break;
-    }
-
     case QgsMapLayerType::PluginLayer:
     case QgsMapLayerType::AnnotationLayer:
       break;
@@ -455,6 +438,7 @@ void QgsLayerStylingWidget::updateCurrentWidgetLayer()
     QgsMapLayerConfigWidget *panel = mUserPages[row]->createWidget( mCurrentLayer, mMapCanvas, true, mWidgetStack );
     if ( panel )
     {
+      panel->setDockMode( true );
       connect( panel, &QgsPanelWidget::widgetChanged, this, &QgsLayerStylingWidget::autoApply );
       mWidgetStack->setMainPanel( panel );
     }
@@ -676,14 +660,8 @@ void QgsLayerStylingWidget::updateCurrentWidgetLayer()
 
       case QgsMapLayerType::PointCloudLayer:
       {
-        QgsPointCloudLayer *pcLayer = qobject_cast<QgsPointCloudLayer *>( mCurrentLayer );
-        ( void )pcLayer;
-
-        //TODO
-        mStackedWidget->setCurrentIndex( mNotSupportedPage );
         break;
       }
-
       case QgsMapLayerType::PluginLayer:
       case QgsMapLayerType::AnnotationLayer:
       {
@@ -813,11 +791,7 @@ bool QgsLayerStyleManagerWidgetFactory::supportsLayer( QgsMapLayer *layer ) cons
       return true;
 
     case QgsMapLayerType::VectorTileLayer:
-      return false;  // TODO
-
     case QgsMapLayerType::PointCloudLayer:
-      return false;  // TODO
-
     case QgsMapLayerType::PluginLayer:
     case QgsMapLayerType::AnnotationLayer:
       return false;

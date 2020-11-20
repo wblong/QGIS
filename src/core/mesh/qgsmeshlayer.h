@@ -151,6 +151,14 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
     //! QgsMeshLayer cannot be copied.
     QgsMeshLayer &operator=( QgsMeshLayer const &rhs ) = delete;
 
+#ifdef SIP_RUN
+    SIP_PYOBJECT __repr__();
+    % MethodCode
+    QString str = QStringLiteral( "<QgsMeshLayer: '%1' (%2)>" ).arg( sipCpp->name(), sipCpp->dataProvider() ? sipCpp->dataProvider()->name() : QStringLiteral( "Invalid" ) );
+    sipRes = PyUnicode_FromString( str.toUtf8().constData() );
+    % End
+#endif
+
     QgsMeshDataProvider *dataProvider() override;
     const QgsMeshDataProvider *dataProvider() const override SIP_SKIP;
     QgsMeshLayer *clone() const override SIP_FACTORY;
@@ -327,7 +335,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
     int extraDatasetGroupCount() const;
 
     /**
-     * Returns the list of indexes of dataset groups count handled by the layer
+     * Returns the list of indexes of dataset groups handled by the layer
      *
      * \note indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
      * In the layer scope, those indexes can be different from the data provider indexes.

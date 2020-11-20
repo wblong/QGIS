@@ -1,5 +1,8 @@
+if(WIN32)
+  add_definitions(-DQWT_DLL)
+endif()
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/external
   ${CMAKE_SOURCE_DIR}/external/nlohmann
   ${CMAKE_SOURCE_DIR}/tests/core #for render checker class
@@ -36,22 +39,21 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/src/app/3d
   ${CMAKE_BINARY_DIR}/src/app
   ${QWT_INCLUDE_DIR}
-  #${CMAKE_SOURCE_DIR}/external/qwtpolar-1.1.1
 )
-INCLUDE_DIRECTORIES(SYSTEM
+
+include_directories(SYSTEM
   ${QT_INCLUDE_DIR}
   ${GDAL_INCLUDE_DIR}
   ${QT5_3DEXTRA_INCLUDE_DIR}
 )
 
-
-ADD_EXECUTABLE(qgis_3d_sandbox
+add_executable(qgis_3d_sandbox
   qgis_3d_sandbox.cpp
   ${CMAKE_SOURCE_DIR}/src/app/3d/qgs3dmapcanvas.cpp
   ${CMAKE_SOURCE_DIR}/src/app/3d/qgs3dnavigationwidget.cpp
 )
-SET_TARGET_PROPERTIES(qgis_3d_sandbox PROPERTIES AUTORCC TRUE)
-TARGET_LINK_LIBRARIES(qgis_3d_sandbox
+set_target_properties(qgis_3d_sandbox PROPERTIES AUTORCC TRUE)
+target_link_libraries(qgis_3d_sandbox
   ${Qt5Xml_LIBRARIES}
   ${Qt5Core_LIBRARIES}
   ${Qt5Svg_LIBRARIES}

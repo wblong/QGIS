@@ -25,6 +25,8 @@
 #include "qgsapplication.h"
 #include "qgsmetadatawidget.h"
 #include "qgsmaplayerloadstyledialog.h"
+#include "qgsmaplayerconfigwidgetfactory.h"
+#include "qgsmaplayerconfigwidget.h"
 #include <QFileDialog>
 #include <QMenu>
 #include <QMessageBox>
@@ -58,6 +60,9 @@ QgsPointCloudLayerProperties::QgsPointCloudLayerProperties( QgsPointCloudLayer *
   layout->addWidget( mMetadataWidget );
   metadataFrame->setLayout( layout );
   mOptsPage_Metadata->setContentsMargins( 0, 0, 0, 0 );
+
+  mAttributeComboBox->setFilters( QgsPointCloudAttributeProxyModel::Numeric );
+  mAttributeComboBox->setLayer( mLayer );
 
   // update based on lyr's current state
   syncToLayer();
@@ -99,14 +104,45 @@ QgsPointCloudLayerProperties::QgsPointCloudLayerProperties( QgsPointCloudLayer *
   restoreOptionsBaseUi( title );
 }
 
+void QgsPointCloudLayerProperties::addPropertiesPageFactory( QgsMapLayerConfigWidgetFactory *factory )
+{
+  if ( !factory->supportsLayer( mLayer ) || !factory->supportLayerPropertiesDialog() )
+  {
+    return;
+  }
+
+  QgsMapLayerConfigWidget *page = factory->createWidget( mLayer, mMapCanvas, false, this );
+  mConfigWidgets << page;
+
+  const QString beforePage = factory->layerPropertiesPagePositionHint();
+  if ( beforePage.isEmpty() )
+    addPage( factory->title(), factory->title(), factory->icon(), page );
+  else
+    insertPage( factory->title(), factory->title(), factory->icon(), page, beforePage );
+
+  page->syncToLayer( mLayer );
+}
+
+#include "qgspointcloudrenderer.h"
+
 void QgsPointCloudLayerProperties::apply()
 {
   mMetadataWidget->acceptMetadata();
 
   // TODO -- move to proper widget classes!
-  mLayer->setCustomProperty( QStringLiteral( "pcMin" ), mMinZSpin->value() );
-  mLayer->setCustomProperty( QStringLiteral( "pcMax" ), mMaxZSpin->value() );
-  mLayer->setCustomProperty( QStringLiteral( "pcRamp" ), mBtnColorRamp->colorRampName().isEmpty() ? QStringLiteral( "Viridis" ) : mBtnColorRamp->colorRampName() );
+
+#if 0
+  std::unique_ptr< QgsDummyPointCloudRenderer > renderer = qgis::make_unique< QgsDummyPointCloudRenderer >();
+  renderer->setAttribute( mAttributeComboBox->currentAttribute() );
+  renderer->setZMin( mMinZSpin->value() );
+  renderer->setZMax( mMaxZSpin->value() );
+  renderer->setColorRamp( mBtnColorRamp->colorRamp() );
+  mLayer->setRenderer( renderer.release() );
+#endif
+
+  for ( QgsMapLayerConfigWidget *w : mConfigWidgets )
+    w->apply();
+
   mLayer->triggerRepaint();
 }
 
@@ -138,10 +174,16 @@ void QgsPointCloudLayerProperties::syncToLayer()
   connect( mInformationTextBrowser, &QTextBrowser::anchorClicked, this, &QgsPointCloudLayerProperties::urlClicked );
 
   // TODO -- move to proper widget classes!
-  mMinZSpin->setValue( mLayer->customProperty( QStringLiteral( "pcMin" ), 400 ).toInt() );
-  mMaxZSpin->setValue( mLayer->customProperty( QStringLiteral( "pcMax" ), 600 ).toInt() );
-  mBtnColorRamp->setColorRampFromName( mLayer->customProperty( QStringLiteral( "pcRamp" ), QStringLiteral( "Viridis" ) ).toString() );
-  mBtnColorRamp->setColorRampName( mLayer->customProperty( QStringLiteral( "pcRamp" ), QStringLiteral( "Viridis" ) ).toString() );
+  if ( QgsDummyPointCloudRenderer *renderer = dynamic_cast< QgsDummyPointCloudRenderer * >( mLayer->renderer() ) )
+  {
+    mAttributeComboBox->setAttribute( renderer->attribute() );
+    mMinZSpin->setValue( renderer->zMin() );
+    mMaxZSpin->setValue( renderer->zMax() );
+    mBtnColorRamp->setColorRamp( renderer->colorRamp() );
+  }
+
+  for ( QgsMapLayerConfigWidget *w : mConfigWidgets )
+    w->syncToLayer( mLayer );
 }
 
 
@@ -376,3 +418,4 @@ void QgsPointCloudLayerProperties::optionsStackedWidget_CurrentChanged( int inde
   mBtnStyle->setVisible( ! isMetadataPanel );
   mBtnMetadata->setVisible( isMetadataPanel );
 }
+

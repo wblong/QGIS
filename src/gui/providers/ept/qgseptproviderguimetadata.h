@@ -32,7 +32,6 @@ class QgsEptProviderGuiMetadata: public QgsProviderGuiMetadata
     QgsEptProviderGuiMetadata();
 
     QList<QgsDataItemGuiProvider *> dataItemGuiProviders() override;
-    QList<QgsSourceSelectProvider *> sourceSelectProviders() override;
 };
 
 ///@endcond

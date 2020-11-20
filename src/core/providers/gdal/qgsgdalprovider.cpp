@@ -2319,7 +2319,7 @@ QStringList QgsGdalProvider::subLayers() const
   return mSubLayers;
 }
 
-QVariantMap QgsGdalProviderMetadata::decodeUri( const QString &uri )
+QVariantMap QgsGdalProviderMetadata::decodeUri( const QString &uri ) const
 {
   QString path = uri;
   QString layerName;
@@ -2350,11 +2350,29 @@ QVariantMap QgsGdalProviderMetadata::decodeUri( const QString &uri )
   return uriComponents;
 }
 
-QString QgsGdalProviderMetadata::encodeUri( const QVariantMap &parts )
+QString QgsGdalProviderMetadata::encodeUri( const QVariantMap &parts ) const
 {
   QString path = parts.value( QStringLiteral( "path" ) ).toString();
   QString layerName = parts.value( QStringLiteral( "layerName" ) ).toString();
   return path + ( !layerName.isEmpty() ? QStringLiteral( "|%1" ).arg( layerName ) : QString() );
+}
+
+bool QgsGdalProviderMetadata::uriIsBlocklisted( const QString &uri ) const
+{
+  const QVariantMap parts = decodeUri( uri );
+  if ( !parts.contains( QStringLiteral( "path" ) ) )
+    return false;
+
+  QFileInfo fi( parts.value( QStringLiteral( "path" ) ).toString() );
+  const QString suffix = fi.completeSuffix();
+
+  // internal details only
+  if ( suffix.compare( QLatin1String( "aux.xml" ), Qt::CaseInsensitive ) == 0 || suffix.endsWith( QLatin1String( ".aux.xml" ), Qt::CaseInsensitive ) )
+    return true;
+  if ( suffix.compare( QLatin1String( "tif.xml" ), Qt::CaseInsensitive ) == 0 )
+    return true;
+
+  return false;
 }
 
 
@@ -3341,9 +3359,14 @@ QString QgsGdalProviderMetadata::filters( FilterType type )
       buildSupportedRasterFileFilterAndExtensions( fileFiltersString, exts, wildcards );
       return fileFiltersString;
     }
-    default:
+
+    case QgsProviderMetadata::FilterType::FilterVector:
+    case QgsProviderMetadata::FilterType::FilterMesh:
+    case QgsProviderMetadata::FilterType::FilterMeshDataset:
+    case QgsProviderMetadata::FilterType::FilterPointCloud:
       return QString();
   }
+  return QString();
 }
 
 QString QgsGdalProvider::validateCreationOptions( const QStringList &createOptions, const QString &format )

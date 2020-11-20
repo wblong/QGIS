@@ -113,11 +113,17 @@ data.
     ~QgsMeshLayer();
 
 
-    virtual QgsMeshDataProvider *dataProvider();
-
+    SIP_PYOBJECT __repr__();
 %Docstring
 QgsMeshLayer cannot be copied.
 %End
+%MethodCode
+    QString str = QStringLiteral( "<QgsMeshLayer: '%1' (%2)>" ).arg( sipCpp->name(), sipCpp->dataProvider() ? sipCpp->dataProvider()->name() : QStringLiteral( "Invalid" ) );
+    sipRes = PyUnicode_FromString( str.toUtf8().constData() );
+%End
+
+    virtual QgsMeshDataProvider *dataProvider();
+
     virtual QgsMeshLayer *clone() const /Factory/;
 
     virtual QgsRectangle extent() const;
@@ -257,7 +263,7 @@ Returns the extra dataset groups count handle by the layer
 
     QList<int> datasetGroupsIndexes() const;
 %Docstring
-Returns the list of indexes of dataset groups count handled by the layer
+Returns the list of indexes of dataset groups handled by the layer
 
 .. note::
 

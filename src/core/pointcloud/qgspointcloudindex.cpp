@@ -150,25 +150,7 @@ QgsPointCloudIndex::QgsPointCloudIndex() = default;
 
 QgsPointCloudIndex::~QgsPointCloudIndex() = default;
 
-QList<IndexedPointCloudNode> QgsPointCloudIndex::traverseTree( const QgsRectangle &extent, IndexedPointCloudNode n, int maxDepth )
-{
-  QList<IndexedPointCloudNode> nodes;
-
-  if ( !extent.intersects( nodeMapExtent( n ) ) )
-    return nodes;
-
-  nodes.append( n );
-
-  for ( auto nn : children( n ) )
-  {
-    if ( maxDepth > 0 )
-      nodes += traverseTree( extent, nn, maxDepth - 1 );
-  }
-
-  return nodes;
-}
-
-QList<IndexedPointCloudNode> QgsPointCloudIndex::children( const IndexedPointCloudNode &n )
+QList<IndexedPointCloudNode> QgsPointCloudIndex::nodeChildren( const IndexedPointCloudNode &n ) const
 {
   Q_ASSERT( mHierarchy.contains( n ) );
   QList<IndexedPointCloudNode> lst;
@@ -185,6 +167,11 @@ QList<IndexedPointCloudNode> QgsPointCloudIndex::children( const IndexedPointClo
       lst.append( n2 );
   }
   return lst;
+}
+
+QgsPointCloudAttributeCollection QgsPointCloudIndex::attributes() const
+{
+  return mAttributes;
 }
 
 QgsPointCloudDataBounds QgsPointCloudIndex::nodeBounds( const IndexedPointCloudNode &n ) const
@@ -225,4 +212,9 @@ QgsVector3D QgsPointCloudIndex::scale() const
 QgsVector3D QgsPointCloudIndex::offset() const
 {
   return mOffset;
+}
+
+void QgsPointCloudIndex::setAttributes( const QgsPointCloudAttributeCollection &attributes )
+{
+  mAttributes = attributes;
 }

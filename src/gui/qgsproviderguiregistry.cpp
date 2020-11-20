@@ -25,7 +25,11 @@
 #include "qgsgdalguiprovider.h"
 #include "qgsogrguiprovider.h"
 #include "qgsvectortileproviderguimetadata.h"
+#include "qgspointcloudproviderguimetadata.h"
+
+#ifdef HAVE_EPT
 #include "qgseptproviderguimetadata.h"
+#endif
 
 #ifdef HAVE_STATIC_PROVIDERS
 #include "qgswmsprovidergui.h"
@@ -71,8 +75,17 @@ void QgsProviderGuiRegistry::loadStaticProviders( )
   QgsProviderGuiMetadata *vt = new QgsVectorTileProviderGuiMetadata();
   mProviders[ vt->key() ] = vt;
 
-  QgsProviderGuiMetadata *cp = new QgsEptProviderGuiMetadata();
-  mProviders[ cp->key() ] = cp;
+#ifdef HAVE_EPT
+  QgsProviderGuiMetadata *ept = new QgsEptProviderGuiMetadata();
+  mProviders[ ept->key() ] = ept;
+#endif
+
+  // only show point cloud option if we have at least one point cloud provider available!
+  if ( !QgsProviderRegistry::instance()->filePointCloudFilters().isEmpty() )
+  {
+    QgsProviderGuiMetadata *pointcloud = new QgsPointCloudProviderGuiMetadata();
+    mProviders[ pointcloud->key() ] = pointcloud;
+  }
 
 #ifdef HAVE_STATIC_PROVIDERS
   QgsProviderGuiMetadata *wms = new QgsWmsProviderGuiMetadata();
@@ -198,6 +211,14 @@ QList<QgsProjectStorageGuiProvider *> QgsProviderGuiRegistry::projectStorageGuiP
   if ( meta )
     return meta->projectStorageGuiProviders();
   return QList<QgsProjectStorageGuiProvider *>();
+}
+
+QList<QgsSubsetStringEditorProvider *> QgsProviderGuiRegistry::subsetStringEditorProviders( const QString &providerKey )
+{
+  QgsProviderGuiMetadata *meta = findMetadata_( mProviders, providerKey );
+  if ( meta )
+    return meta->subsetStringEditorProviders();
+  return QList<QgsSubsetStringEditorProvider *>();
 }
 
 QStringList QgsProviderGuiRegistry::providerList() const

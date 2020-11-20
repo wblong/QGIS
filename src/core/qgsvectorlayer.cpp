@@ -276,7 +276,6 @@ QgsVectorLayer *QgsVectorLayer::clone() const
   layer->selectByIds( selectedFeatureIds() );
   layer->setAttributeTableConfig( attributeTableConfig() );
   layer->setFeatureBlendMode( featureBlendMode() );
-  layer->setOpacity( opacity() );
   layer->setReadExtentFromXml( readExtentFromXml() );
 
   const auto constActions = actions()->actions();
@@ -2363,8 +2362,10 @@ bool QgsVectorLayer::readSymbology( const QDomNode &layerNode, QString &errorMes
         for ( int i = 0; i < attributeNodeList.size(); ++i )
         {
           QString fieldName = attributeNodeList.at( i ).toElement().text();
-          int index = mFields.indexFromName( fieldName );
-          setFieldConfigurationFlag( index, config.second, true );
+          if ( !mFieldConfigurationFlags.contains( fieldName ) )
+            mFieldConfigurationFlags[fieldName] = config.second;
+          else
+            mFieldConfigurationFlags[fieldName].setFlag( config.second, true );
         }
       }
     }
@@ -4339,22 +4340,6 @@ QPainter::CompositionMode QgsVectorLayer::featureBlendMode() const
 {
   return mFeatureBlendMode;
 }
-
-void QgsVectorLayer::setOpacity( double opacity )
-{
-  if ( qgsDoubleNear( mLayerOpacity, opacity ) )
-    return;
-  mLayerOpacity = opacity;
-  emit opacityChanged( opacity );
-  emit styleChanged();
-}
-
-double QgsVectorLayer::opacity() const
-{
-  return mLayerOpacity;
-}
-
-
 
 void QgsVectorLayer::readSldLabeling( const QDomNode &node )
 {
