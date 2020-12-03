@@ -128,6 +128,7 @@ Qgs3DMapScene::Qgs3DMapScene( const Qgs3DMapSettings &map, QgsAbstract3DEngine *
   connect( &map, &Qgs3DMapSettings::directionalLightsChanged, this, &Qgs3DMapScene::updateLights );
   connect( &map, &Qgs3DMapSettings::showLightSourceOriginsChanged, this, &Qgs3DMapScene::updateLights );
   connect( &map, &Qgs3DMapSettings::fieldOfViewChanged, this, &Qgs3DMapScene::updateCameraLens );
+  connect( &map, &Qgs3DMapSettings::projectionTypeChanged, this, &Qgs3DMapScene::updateCameraLens );
   connect( &map, &Qgs3DMapSettings::renderersChanged, this, &Qgs3DMapScene::onRenderersChanged );
   connect( &map, &Qgs3DMapSettings::skyboxSettingsChanged, this, &Qgs3DMapScene::onSkyboxSettingsChanged );
   connect( &map, &Qgs3DMapSettings::shadowSettingsChanged, this, &Qgs3DMapScene::onShadowSettingsChanged );
@@ -219,7 +220,7 @@ Qgs3DMapScene::Qgs3DMapScene( const Qgs3DMapSettings &map, QgsAbstract3DEngine *
 
   // force initial update of chunked entities
   onCameraChanged();
-  // force initial update of eye dome shadng
+  // force initial update of eye dome shading
   onEyeDomeShadingSettingsChanged();
   // force initial update of debugging setting of preview quads
   onDebugShadowMapSettingsChanged();
@@ -320,6 +321,14 @@ QgsChunkedEntity::SceneState _sceneState( QgsCameraController *cameraController 
 
 void Qgs3DMapScene::onCameraChanged()
 {
+  if ( mMap.projectionType() == Qt3DRender::QCameraLens::OrthographicProjection )
+  {
+    QRect viewportRect( QPoint( 0, 0 ), mEngine->size() );
+    const float viewWidthFromCenter = mCameraController->distance();
+    const float viewHeightFromCenter =  viewportRect.height() * viewWidthFromCenter / viewportRect.width();
+    mEngine->camera()->lens()->setOrthographicProjection( -viewWidthFromCenter, viewWidthFromCenter, -viewHeightFromCenter, viewHeightFromCenter, mEngine->camera()->nearPlane(), mEngine->camera()->farPlane() );
+  }
+
   updateScene();
   bool changedCameraPlanes = updateCameraNearFarPlanes();
 
@@ -385,6 +394,29 @@ void Qgs3DMapScene::updateScene()
   updateSceneState();
 }
 
+static void _updateNearFarPlane( const QList<QgsChunkNode *> &activeNodes, const QMatrix4x4 &viewMatrix, float &fnear, float &ffar )
+{
+  for ( QgsChunkNode *node : activeNodes )
+  {
+    // project each corner of bbox to camera coordinates
+    // and determine closest and farthest point.
+    QgsAABB bbox = node->bbox();
+    for ( int i = 0; i < 8; ++i )
+    {
+      QVector4D p( ( ( i >> 0 ) & 1 ) ? bbox.xMin : bbox.xMax,
+                   ( ( i >> 1 ) & 1 ) ? bbox.yMin : bbox.yMax,
+                   ( ( i >> 2 ) & 1 ) ? bbox.zMin : bbox.zMax, 1 );
+      QVector4D pc = viewMatrix * p;
+
+      float dst = -pc.z();  // in camera coordinates, x grows right, y grows down, z grows to the back
+      if ( dst < fnear )
+        fnear = dst;
+      if ( dst > ffar )
+        ffar = dst;
+    }
+  }
+}
+
 bool Qgs3DMapScene::updateCameraNearFarPlanes()
 {
   // Update near and far plane from the terrain.
@@ -414,25 +446,16 @@ bool Qgs3DMapScene::updateCameraNearFarPlanes()
     if ( activeNodes.isEmpty() )
       activeNodes << mTerrain->rootNode();
 
-    Q_FOREACH ( QgsChunkNode *node, activeNodes )
-    {
-      // project each corner of bbox to camera coordinates
-      // and determine closest and farthest point.
-      QgsAABB bbox = node->bbox();
-      for ( int i = 0; i < 8; ++i )
-      {
-        QVector4D p( ( ( i >> 0 ) & 1 ) ? bbox.xMin : bbox.xMax,
-                     ( ( i >> 1 ) & 1 ) ? bbox.yMin : bbox.yMax,
-                     ( ( i >> 2 ) & 1 ) ? bbox.zMin : bbox.zMax, 1 );
-        QVector4D pc = viewMatrix * p;
+    _updateNearFarPlane( activeNodes, viewMatrix, fnear, ffar );
 
-        float dst = -pc.z();  // in camera coordinates, x grows right, y grows down, z grows to the back
-        if ( dst < fnear )
-          fnear = dst;
-        if ( dst > ffar )
-          ffar = dst;
-      }
+    // Also involve all the other chunked entities to make sure that they will not get
+    // clipped by the near or far plane
+    for ( QgsChunkedEntity *e : qgis::as_const( mChunkEntities ) )
+    {
+      if ( e != mTerrain )
+        _updateNearFarPlane( e->activeNodes(), viewMatrix, fnear, ffar );
     }
+
     if ( fnear < 1 )
       fnear = 1;  // does not really make sense to use negative far plane (behind camera)
 
@@ -623,6 +646,7 @@ void Qgs3DMapScene::updateLights()
 void Qgs3DMapScene::updateCameraLens()
 {
   mEngine->camera()->lens()->setFieldOfView( mMap.fieldOfView() );
+  mEngine->camera()->lens()->setProjectionType( mMap.projectionType() );
   onCameraChanged();
 }
 

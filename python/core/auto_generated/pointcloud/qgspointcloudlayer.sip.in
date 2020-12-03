@@ -100,10 +100,17 @@ QgsPointCloudLayer cannot be copied.
 
     virtual QString htmlMetadata() const;
 
+    virtual QgsMapLayerElevationProperties *elevationProperties();
+
 
     QgsPointCloudAttributeCollection attributes() const;
 %Docstring
 Returns the attributes available from the layer.
+%End
+
+    int pointCount() const;
+%Docstring
+Returns the total number of points available in the layer.
 %End
 
     QgsPointCloudRenderer *renderer();

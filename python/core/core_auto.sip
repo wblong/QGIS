@@ -54,6 +54,7 @@
 %Include auto_generated/qgsdistancearea.sip
 %Include auto_generated/qgseditformconfig.sip
 %Include auto_generated/qgseditorwidgetsetup.sip
+%Include auto_generated/qgselevationutils.sip
 %Include auto_generated/qgsellipsoidutils.sip
 %Include auto_generated/qgserror.sip
 %Include auto_generated/qgsexpressioncontext.sip
@@ -115,6 +116,7 @@
 %Include auto_generated/qgsmaplayerstore.sip
 %Include auto_generated/qgsmaplayerstyle.sip
 %Include auto_generated/qgsmaplayerstylemanager.sip
+%Include auto_generated/qgsmaplayerelevationproperties.sip
 %Include auto_generated/qgsmaplayertemporalproperties.sip
 %Include auto_generated/qgsmaprenderercache.sip
 %Include auto_generated/qgsmaprenderercustompainterjob.sip
@@ -444,9 +446,12 @@
 %Include auto_generated/mesh/qgsmeshtracerenderer.sip
 %Include auto_generated/mesh/qgsmeshcalculator.sip
 %Include auto_generated/pointcloud/qgspointcloudattribute.sip
+%Include auto_generated/pointcloud/qgspointcloudattributebyramprenderer.sip
 %Include auto_generated/pointcloud/qgspointcloudattributemodel.sip
+%Include auto_generated/pointcloud/qgspointcloudclassifiedrenderer.sip
 %Include auto_generated/pointcloud/qgspointcloudblock.sip
 %Include auto_generated/pointcloud/qgspointcloudlayer.sip
+%Include auto_generated/pointcloud/qgspointcloudlayerelevationproperties.sip
 %Include auto_generated/pointcloud/qgspointclouddataprovider.sip
 %Include auto_generated/pointcloud/qgspointcloudrenderer.sip
 %Include auto_generated/pointcloud/qgspointcloudrendererregistry.sip

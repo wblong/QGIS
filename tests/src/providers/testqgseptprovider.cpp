@@ -30,6 +30,7 @@
 #include "qgseptprovider.h"
 #include "qgspointcloudlayer.h"
 #include "qgspointcloudindex.h"
+#include "qgspointcloudlayerelevationproperties.h"
 
 /**
  * \ingroup UnitTests
@@ -55,6 +56,7 @@ class TestQgsEptProvider : public QObject
     void validLayer();
     void validLayerWithEptHierarchy();
     void attributes();
+    void calculateZRange();
 
   private:
     QString mTestDataDir;
@@ -169,6 +171,9 @@ void TestQgsEptProvider::validLayer()
   QGSCOMPARENEAR( layer->extent().yMinimum(), 7050992.0, 0.1 );
   QGSCOMPARENEAR( layer->extent().xMaximum(), 498068.0, 0.1 );
   QGSCOMPARENEAR( layer->extent().yMaximum(), 7050998.0, 0.1 );
+  QCOMPARE( layer->dataProvider()->polygonBounds().asWkt( 0 ), QStringLiteral( "Polygon ((498061 7050992, 498068 7050992, 498068 7050998, 498061 7050998, 498061 7050992))" ) );
+  QCOMPARE( layer->dataProvider()->pointCount(), 253 );
+  QCOMPARE( layer->pointCount(), 253 );
 
   QVERIFY( layer->dataProvider()->index() );
   // all hierarchy is stored in a single node
@@ -206,7 +211,7 @@ void TestQgsEptProvider::attributes()
   QCOMPARE( attributes.at( 2 ).name(), QStringLiteral( "Z" ) );
   QCOMPARE( attributes.at( 2 ).type(), QgsPointCloudAttribute::Int32 );
   QCOMPARE( attributes.at( 3 ).name(), QStringLiteral( "Intensity" ) );
-  QCOMPARE( attributes.at( 3 ).type(), QgsPointCloudAttribute::Short );
+  QCOMPARE( attributes.at( 3 ).type(), QgsPointCloudAttribute::UShort );
   QCOMPARE( attributes.at( 4 ).name(), QStringLiteral( "ReturnNumber" ) );
   QCOMPARE( attributes.at( 4 ).type(), QgsPointCloudAttribute::Char );
   QCOMPARE( attributes.at( 5 ).name(), QStringLiteral( "NumberOfReturns" ) );
@@ -222,15 +227,25 @@ void TestQgsEptProvider::attributes()
   QCOMPARE( attributes.at( 10 ).name(), QStringLiteral( "UserData" ) );
   QCOMPARE( attributes.at( 10 ).type(), QgsPointCloudAttribute::Char );
   QCOMPARE( attributes.at( 11 ).name(), QStringLiteral( "PointSourceId" ) );
-  QCOMPARE( attributes.at( 11 ).type(), QgsPointCloudAttribute::Short );
+  QCOMPARE( attributes.at( 11 ).type(), QgsPointCloudAttribute::UShort );
   QCOMPARE( attributes.at( 12 ).name(), QStringLiteral( "GpsTime" ) );
   QCOMPARE( attributes.at( 12 ).type(), QgsPointCloudAttribute::Double );
   QCOMPARE( attributes.at( 13 ).name(), QStringLiteral( "Red" ) );
-  QCOMPARE( attributes.at( 13 ).type(), QgsPointCloudAttribute::Short );
+  QCOMPARE( attributes.at( 13 ).type(), QgsPointCloudAttribute::UShort );
   QCOMPARE( attributes.at( 14 ).name(), QStringLiteral( "Green" ) );
-  QCOMPARE( attributes.at( 14 ).type(), QgsPointCloudAttribute::Short );
+  QCOMPARE( attributes.at( 14 ).type(), QgsPointCloudAttribute::UShort );
   QCOMPARE( attributes.at( 15 ).name(), QStringLiteral( "Blue" ) );
-  QCOMPARE( attributes.at( 15 ).type(), QgsPointCloudAttribute::Short );
+  QCOMPARE( attributes.at( 15 ).type(), QgsPointCloudAttribute::UShort );
+}
+
+void TestQgsEptProvider::calculateZRange()
+{
+  std::unique_ptr< QgsPointCloudLayer > layer = qgis::make_unique< QgsPointCloudLayer >( mTestDataDir + QStringLiteral( "point_clouds/ept/sunshine-coast/ept.json" ), QStringLiteral( "layer" ), QStringLiteral( "ept" ) );
+  QVERIFY( layer->isValid() );
+
+  QgsDoubleRange range = layer->elevationProperties()->calculateZRange( layer.get() );
+  QGSCOMPARENEAR( range.lower(), 1, 74.34 );
+  QGSCOMPARENEAR( range.upper(), 2, 80.02 );
 }
 
 

@@ -28,19 +28,23 @@
 #include "qgsapplication.h"
 #include "qgspainting.h"
 #include "qgspointcloudrendererregistry.h"
-
+#include "qgspointcloudlayerelevationproperties.h"
+#include "qgsmaplayerlegend.h"
 
 QgsPointCloudLayer::QgsPointCloudLayer( const QString &path,
                                         const QString &baseName,
                                         const QString &providerLib,
                                         const QgsPointCloudLayer::LayerOptions &options )
   : QgsMapLayer( QgsMapLayerType::PointCloudLayer, baseName, path )
+  , mElevationProperties( new QgsPointCloudLayerElevationProperties( this ) )
 {
   if ( !path.isEmpty() && !providerLib.isEmpty() )
   {
     QgsDataProvider::ProviderOptions providerOptions { options.transformContext };
     setDataSource( path, baseName, providerLib, providerOptions, options.loadDefaultStyle );
   }
+
+  setLegend( QgsMapLayerLegend::defaultPointCloudLegend( this ) );
 }
 
 QgsPointCloudLayer::~QgsPointCloudLayer() = default;
@@ -164,7 +168,7 @@ bool QgsPointCloudLayer::readStyle( const QDomNode &node, QString &, QgsReadWrit
     // make sure layer has a renderer - if none exists, fallback to a default renderer
     if ( !mRenderer )
     {
-      setRenderer( QgsApplication::pointCloudRendererRegistry()->defaultRenderer( attributes() ) );
+      setRenderer( QgsApplication::pointCloudRendererRegistry()->defaultRenderer( mDataProvider.get() ) );
     }
   }
 
@@ -333,7 +337,7 @@ void QgsPointCloudLayer::setDataSource( const QString &dataSource, const QString
     if ( !defaultLoadedFlag )
     {
       // all else failed, create default renderer
-      setRenderer( QgsApplication::pointCloudRendererRegistry()->defaultRenderer( attributes() ) );
+      setRenderer( QgsApplication::pointCloudRendererRegistry()->defaultRenderer( mDataProvider.get() ) );
     }
   }
 
@@ -409,6 +413,15 @@ QString QgsPointCloudLayer::htmlMetadata() const
   // unit
   myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" ) + tr( "Unit" ) + QStringLiteral( "</td><td>" ) + QgsUnitTypes::toString( crs().mapUnits() ) + QStringLiteral( "</td></tr>\n" );
 
+  // feature count
+  QLocale locale = QLocale();
+  locale.setNumberOptions( locale.numberOptions() &= ~QLocale::NumberOption::OmitGroupSeparator );
+  const int pointCount = mDataProvider ? mDataProvider->pointCount() : -1;
+  myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                + tr( "Point count" ) + QStringLiteral( "</td><td>" )
+                + ( pointCount < 0 ? tr( "unknown" ) : locale.toString( static_cast<qlonglong>( pointCount ) ) )
+                + QStringLiteral( "</td></tr>\n" );
+
   // End Provider section
   myMetadata += QLatin1String( "</table>\n<br><br>" );
 
@@ -470,9 +483,19 @@ QString QgsPointCloudLayer::htmlMetadata() const
   return myMetadata;
 }
 
+QgsMapLayerElevationProperties *QgsPointCloudLayer::elevationProperties()
+{
+  return mElevationProperties;
+}
+
 QgsPointCloudAttributeCollection QgsPointCloudLayer::attributes() const
 {
   return mDataProvider ? mDataProvider->attributes() : QgsPointCloudAttributeCollection();
+}
+
+int QgsPointCloudLayer::pointCount() const
+{
+  return mDataProvider ? mDataProvider->pointCount() : 0;
 }
 
 QgsPointCloudRenderer *QgsPointCloudLayer::renderer()

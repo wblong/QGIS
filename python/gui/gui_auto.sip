@@ -171,6 +171,7 @@
 %Include auto_generated/qgsproviderguiregistry.sip
 %Include auto_generated/qgsproxystyle.sip
 %Include auto_generated/qgsquerybuilder.sip
+%Include auto_generated/qgsrangeslider.sip
 %Include auto_generated/qgsrasterformatsaveoptionswidget.sip
 %Include auto_generated/qgsrasterlayersaveasdialog.sip
 %Include auto_generated/qgsrasterpyramidsoptionswidget.sip
@@ -334,6 +335,7 @@
 %Include auto_generated/numericformats/qgsnumericformatselectorwidget.sip
 %Include auto_generated/numericformats/qgsnumericformatwidget.sip
 %Include auto_generated/numericformats/qgsnumericformatguiregistry.sip
+%Include auto_generated/pointcloud/qgspointcloudclassifiedrendererwidget.sip
 %Include auto_generated/pointcloud/qgspointcloudrendererwidget.sip
 %Include auto_generated/pointcloud/qgspointcloudrendererpropertieswidget.sip
 %Include auto_generated/processing/qgsprocessingaggregatewidgets.sip

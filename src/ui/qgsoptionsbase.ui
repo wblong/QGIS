@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1029</width>
-    <height>730</height>
+    <height>744</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -332,7 +332,7 @@
        <item>
         <widget class="QStackedWidget" name="mOptionsStackedWidget">
          <property name="currentIndex">
-          <number>0</number>
+          <number>9</number>
          </property>
          <widget class="QWidget" name="mOptionsPageGeneral">
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -361,7 +361,7 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>843</width>
+                <width>675</width>
                 <height>1019</height>
                </rect>
               </property>
@@ -1133,7 +1133,7 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>843</width>
+                <width>586</width>
                 <height>1084</height>
                </rect>
               </property>
@@ -1672,8 +1672,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>857</width>
-                <height>679</height>
+                <width>340</width>
+                <height>442</height>
                </rect>
               </property>
               <layout class="QGridLayout" name="gridLayout_15">
@@ -1864,8 +1864,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>857</width>
-                <height>679</height>
+                <width>599</width>
+                <height>111</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_47">
@@ -1947,7 +1947,7 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>843</width>
+                <width>628</width>
                 <height>804</height>
                </rect>
               </property>
@@ -2356,7 +2356,7 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>843</width>
+                <width>713</width>
                 <height>1198</height>
                </rect>
               </property>
@@ -3161,8 +3161,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>857</width>
-                <height>679</height>
+                <width>509</width>
+                <height>375</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_25">
@@ -3371,14 +3371,14 @@
                       <property name="whatsThis">
                        <string extracomment="MAP_RESOLUTION or DPI value overloading getMap default value (set 0 to use default)"/>
                       </property>
+                      <property name="suffix">
+                       <string> dpi</string>
+                      </property>
                       <property name="minimum">
                        <number>0</number>
                       </property>
                       <property name="maximum">
                        <number>1000000</number>
-                      </property>
-                      <property name="suffix">
-                       <string> dpi</string>
                       </property>
                      </widget>
                     </item>
@@ -3417,6 +3417,9 @@
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
+                      <property name="toolTip">
+                       <string extracomment="(set value to 0 to skip minimum size)"/>
+                      </property>
                       <property name="suffix">
                        <string> mm</string>
                       </property>
@@ -3424,19 +3427,16 @@
                        <number>2</number>
                       </property>
                       <property name="maximum">
-                       <double>999.00</double>
+                       <double>999.000000000000000</double>
                       </property>
                       <property name="singleStep">
                        <double>0.200000000000000</double>
                       </property>
                       <property name="value">
-                       <double>0.10</double>
+                       <double>0.100000000000000</double>
                       </property>
                       <property name="showClearButton" stdset="0">
                        <bool>true</bool>
-                      </property>
-                      <property name="toolTip">
-                       <string extracomment="(set value to 0 to skip minimum size)"/>
                       </property>
                      </widget>
                     </item>
@@ -3475,6 +3475,9 @@
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
+                      <property name="toolTip">
+                       <string extracomment="(set value to 0 to skip maximum size)"/>
+                      </property>
                       <property name="suffix">
                        <string> mm</string>
                       </property>
@@ -3482,19 +3485,16 @@
                        <number>2</number>
                       </property>
                       <property name="maximum">
-                       <double>999.00</double>
+                       <double>999.000000000000000</double>
                       </property>
                       <property name="singleStep">
                        <double>0.200000000000000</double>
                       </property>
                       <property name="value">
-                       <double>20.00</double>
+                       <double>20.000000000000000</double>
                       </property>
                       <property name="showClearButton" stdset="0">
                        <bool>true</bool>
-                      </property>
-                      <property name="toolTip">
-                       <string extracomment="(set value to 0 to skip maximum size)"/>
                       </property>
                      </widget>
                     </item>
@@ -3540,14 +3540,14 @@
                   </item>
                   <item>
                    <widget class="QgsSpinBox" name="mMapTipsDelaySpinBox">
-                    <property name="suffix">
-                     <string> ms</string>
-                    </property>
                     <property name="toolTip">
                      <string extracomment="MAP_RESOLUTION or DPI value overloading getMap default value (set 0 to use default)"/>
                     </property>
                     <property name="whatsThis">
                      <string extracomment="MAP_RESOLUTION or DPI value overloading getMap default value (set 0 to use default)"/>
+                    </property>
+                    <property name="suffix">
+                     <string> ms</string>
                     </property>
                     <property name="minimum">
                      <number>0</number>
@@ -3606,7 +3606,7 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>843</width>
+                <width>614</width>
                 <height>709</height>
                </rect>
               </property>
@@ -4123,8 +4123,8 @@ The bigger the number, the faster zooming with the mouse wheel will be.</string>
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>857</width>
-                <height>679</height>
+                <width>139</width>
+                <height>255</height>
                </rect>
               </property>
               <layout class="QHBoxLayout" name="horizontalLayout_46">
@@ -4304,7 +4304,7 @@ The bigger the number, the faster zooming with the mouse wheel will be.</string>
                 <x>0</x>
                 <y>0</y>
                 <width>843</width>
-                <height>956</height>
+                <height>1024</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_31">
@@ -4888,6 +4888,46 @@ The bigger the number, the faster zooming with the mouse wheel will be.</string>
                     </property>
                    </widget>
                   </item>
+                  <item row="1" column="0">
+                   <widget class="QLabel" name="label_44">
+                    <property name="text">
+                     <string>Angle tolerance when tracing curves</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QLabel" name="label_70">
+                    <property name="text">
+                     <string>Distance tolerance when tracing curves</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="2">
+                   <widget class="QgsDoubleSpinBox" name="mTracingCustomAngleToleranceSpinBox">
+                    <property name="toolTip">
+                     <string>This specifies the maximum angular deviation (in radians) allowed for a series of points to be converted to a curve.</string>
+                    </property>
+                    <property name="decimals">
+                     <number>10</number>
+                    </property>
+                    <property name="maximum">
+                     <double>9999.000000000000000</double>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="2">
+                   <widget class="QgsDoubleSpinBox" name="mTracingCustomDistanceToleranceSpinBox">
+                    <property name="toolTip">
+                     <string>This specifies the maximum deviation allowed between the original location of vertices and where they would fall on the candidate curved geometry for a series of points to be converted to a curve.</string>
+                    </property>
+                    <property name="decimals">
+                     <number>10</number>
+                    </property>
+                    <property name="maximum">
+                     <double>9999.000000000000000</double>
+                    </property>
+                   </widget>
+                  </item>
                  </layout>
                 </widget>
                </item>
@@ -4937,8 +4977,8 @@ The bigger the number, the faster zooming with the mouse wheel will be.</string>
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>857</width>
-                <height>679</height>
+                <width>474</width>
+                <height>556</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_39">
@@ -5218,8 +5258,8 @@ The bigger the number, the faster zooming with the mouse wheel will be.</string>
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>857</width>
-                <height>679</height>
+                <width>447</width>
+                <height>431</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_6">
@@ -5490,7 +5530,7 @@ The bigger the number, the faster zooming with the mouse wheel will be.</string>
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>843</width>
+                <width>660</width>
                 <height>699</height>
                </rect>
               </property>
@@ -6083,23 +6123,6 @@ p, li { white-space: pre-wrap; }
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
   <customwidget>
-   <class>QgsCollapsibleGroupBox</class>
-   <extends>QGroupBox</extends>
-   <header>qgscollapsiblegroupbox.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>QgsSpinBox</class>
-   <extends>QSpinBox</extends>
-   <header>qgsspinbox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>QgsProjectionSelectionWidget</class>
-   <extends>QWidget</extends>
-   <header>qgsprojectionselectionwidget.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>QgsColorButton</class>
    <extends>QToolButton</extends>
    <header>qgscolorbutton.h</header>
@@ -6117,6 +6140,12 @@ p, li { white-space: pre-wrap; }
    <header>qgsfilterlineedit.h</header>
   </customwidget>
   <customwidget>
+   <class>QgsCollapsibleGroupBox</class>
+   <extends>QGroupBox</extends>
+   <header>qgscollapsiblegroupbox.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
    <class>QgsColorSchemeList</class>
    <extends>QWidget</extends>
    <header location="global">qgscolorschemelist.h</header>
@@ -6126,6 +6155,23 @@ p, li { white-space: pre-wrap; }
    <class>QgsVariableEditorWidget</class>
    <extends>QWidget</extends>
    <header location="global">qgsvariableeditorwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsDatumTransformTableWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsdatumtransformtablewidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>qgsspinbox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsProjectionSelectionWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsprojectionselectionwidget.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -6143,12 +6189,6 @@ p, li { white-space: pre-wrap; }
    <class>QgsAuthSettingsWidget</class>
    <extends>QWidget</extends>
    <header>auth/qgsauthsettingswidget.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>QgsDatumTransformTableWidget</class>
-   <extends>QWidget</extends>
-   <header>qgsdatumtransformtablewidget.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -6337,6 +6377,8 @@ p, li { white-space: pre-wrap; }
   <tabstop>mOffsetQuadSegSpinBox</tabstop>
   <tabstop>mCurveOffsetMiterLimitComboBox</tabstop>
   <tabstop>mTracingConvertToCurveCheckBox</tabstop>
+  <tabstop>mTracingCustomAngleToleranceSpinBox</tabstop>
+  <tabstop>mTracingCustomDistanceToleranceSpinBox</tabstop>
   <tabstop>mOptionsScrollArea_12</tabstop>
   <tabstop>mComposerFontComboBox</tabstop>
   <tabstop>mGridStyleComboBox</tabstop>

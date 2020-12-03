@@ -554,6 +554,7 @@ bool QgsOracleProvider::loadFields()
 {
   mAttributeFields.clear();
   mDefaultValues.clear();
+  mAlwaysGenerated.clear();
 
   QgsOracleConn *conn = connectionRO();
   QSqlQuery qry( *conn );
@@ -773,6 +774,7 @@ bool QgsOracleProvider::loadFields()
 
     QVariant::Type type = field.type();
     QgsField newField( field.name(), type, types.value( field.name() ), field.length(), field.precision(), comments.value( field.name() ) );
+    newField.setReadOnly( alwaysGenerated.value( field.name(), false ) );
 
     QgsFieldConstraints constraints;
     if ( mPrimaryKeyAttrs.contains( i ) )
@@ -1212,6 +1214,12 @@ QVariant QgsOracleProvider::defaultValue( int fieldId ) const
 QString QgsOracleProvider::defaultValueClause( int fieldId ) const
 {
   QString defVal = mDefaultValues.value( fieldId, QString() ).toString();
+  const bool isGenerated = mAlwaysGenerated.value( fieldId, false );
+
+  if ( isGenerated )
+  {
+    return defVal;
+  }
 
   if ( !providerProperty( EvaluateDefaultValues, false ).toBool() && !defVal.isEmpty() )
   {
@@ -1220,7 +1228,6 @@ QString QgsOracleProvider::defaultValueClause( int fieldId ) const
 
   return QString();
 }
-
 
 bool QgsOracleProvider::skipConstraintCheck( int fieldIndex, QgsFieldConstraints::Constraint constraint, const QVariant &value ) const
 {
@@ -1667,6 +1674,7 @@ bool QgsOracleProvider::deleteAttributes( const QgsAttributeIds &ids )
       //delete the attribute from mAttributeFields
       mAttributeFields.remove( id );
       mDefaultValues.removeAt( id );
+      mAlwaysGenerated.removeAt( id );
     }
 
     if ( !conn->commit( db ) )
@@ -3093,8 +3101,8 @@ QgsVectorLayerExporter::ExportError QgsOracleProvider::createEmptyLayer(
       }
     }
 
-    if ( !exec( qry, QString( "INSERT INTO mdsys.user_sdo_geom_metadata(table_name,column_name,srid,diminfo) VALUES (?,?,?,?)" ),
-                QVariantList() << tableName.toUpper() << geometryColumn.toUpper() << srid << diminfo ) )
+    if ( !exec( qry, QStringLiteral( "INSERT INTO mdsys.user_sdo_geom_metadata(table_name,column_name,srid,diminfo) VALUES (?,?,?,%1)" ).arg( diminfo ),
+                QVariantList() << tableName.toUpper() << geometryColumn.toUpper() << srid ) )
     {
       throw OracleException( tr( "Could not insert metadata." ), qry );
     }

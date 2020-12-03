@@ -78,6 +78,26 @@ QgsPointCloudIndex *QgsEptProvider::index() const
   return mIndex.get();
 }
 
+int QgsEptProvider::pointCount() const
+{
+  return mIndex->pointCount();
+}
+
+QVariantList QgsEptProvider::metadataClasses( const QString &attribute ) const
+{
+  return mIndex->metadataClasses( attribute );
+}
+
+QVariant QgsEptProvider::metadataClassStatistic( const QString &attribute, const QVariant &value, QgsStatisticalSummary::Statistic statistic ) const
+{
+  return mIndex->metadataClassStatistic( attribute, value, statistic );
+}
+
+QVariant QgsEptProvider::metadataStatistic( const QString &attribute, QgsStatisticalSummary::Statistic statistic ) const
+{
+  return mIndex->metadataStatistic( attribute, statistic );
+}
+
 QgsEptProviderMetadata::QgsEptProviderMetadata():
   QgsProviderMetadata( PROVIDER_KEY, PROVIDER_DESCRIPTION )
 {

@@ -56,14 +56,7 @@ QgsPointCloudRenderer *QgsPointCloudRgbRenderer::clone() const
 
 void QgsPointCloudRgbRenderer::renderBlock( const QgsPointCloudBlock *block, QgsPointCloudRenderContext &context )
 {
-  const QgsMapToPixel mapToPixel = context.renderContext().mapToPixel();
-
-  QgsRectangle mapExtent = context.renderContext().mapExtent();
-
-  QPen pen;
-  pen.setWidth( mPainterPenWidth );
-  pen.setCapStyle( Qt::FlatCap );
-  //pen.setJoinStyle( Qt::MiterJoin );
+  const QgsRectangle visibleExtent = context.renderContext().extent();
 
   const char *ptr = block->data();
   int count = block->pointCount();
@@ -92,83 +85,46 @@ void QgsPointCloudRgbRenderer::renderBlock( const QgsPointCloudBlock *block, Qgs
   const bool useBlueContrastEnhancement = mBlueContrastEnhancement && mBlueContrastEnhancement->contrastEnhancementAlgorithm() != QgsContrastEnhancement::NoEnhancement;
   const bool useGreenContrastEnhancement = mGreenContrastEnhancement && mGreenContrastEnhancement->contrastEnhancementAlgorithm() != QgsContrastEnhancement::NoEnhancement;
 
+  const QgsDoubleRange zRange = context.renderContext().zRange();
+  const bool considerZ = !zRange.isInfinite();
+
   int rendered = 0;
   double x = 0;
   double y = 0;
+  double z = 0;
+  const QgsCoordinateTransform ct = context.renderContext().coordinateTransform();
+  const bool reproject = ct.isValid();
   for ( int i = 0; i < count; ++i )
   {
-    pointXY( context, ptr, i, x, y );
-
-    if ( mapExtent.contains( QgsPointXY( x, y ) ) )
+    if ( considerZ )
     {
+      // z value filtering is cheapest, if we're doing it...
+      z = pointZ( context, ptr, i );
+      if ( !zRange.contains( z ) )
+        continue;
+    }
+
+    pointXY( context, ptr, i, x, y );
+    if ( visibleExtent.contains( QgsPointXY( x, y ) ) )
+    {
+      if ( reproject )
+      {
+        try
+        {
+          ct.transformInPlace( x, y, z );
+        }
+        catch ( QgsCsException & )
+        {
+          continue;
+        }
+      }
+
       int red = 0;
-      switch ( redType )
-      {
-        case QgsPointCloudAttribute::Char:
-          continue;
-
-        case QgsPointCloudAttribute::Int32:
-          red = *( qint32 * )( ptr + i * recordSize + redOffset );
-          break;
-
-        case QgsPointCloudAttribute::Short:
-          red = *( short * )( ptr + i * recordSize + redOffset );
-          break;
-
-        case QgsPointCloudAttribute::Float:
-          red = *( float * )( ptr + i * recordSize + redOffset );
-          break;
-
-        case QgsPointCloudAttribute::Double:
-          red = *( double * )( ptr + i * recordSize + redOffset );
-          break;
-      }
-
+      context.getAttribute( ptr, i * recordSize + redOffset, redType, red );
       int green = 0;
-      switch ( greenType )
-      {
-        case QgsPointCloudAttribute::Char:
-          continue;
-
-        case QgsPointCloudAttribute::Int32:
-          green = *( qint32 * )( ptr + i * recordSize + greenOffset );
-          break;
-
-        case QgsPointCloudAttribute::Short:
-          green = *( short * )( ptr + i * recordSize + greenOffset );
-          break;
-
-        case QgsPointCloudAttribute::Float:
-          green = *( float * )( ptr + i * recordSize + greenOffset );
-          break;
-
-        case QgsPointCloudAttribute::Double:
-          green = *( double * )( ptr + i * recordSize + greenOffset );
-          break;
-      }
-
+      context.getAttribute( ptr, i * recordSize + greenOffset, greenType, green );
       int blue = 0;
-      switch ( blueType )
-      {
-        case QgsPointCloudAttribute::Char:
-          continue;
-
-        case QgsPointCloudAttribute::Int32:
-          blue = *( qint32 * )( ptr + i * recordSize + blueOffset );
-          break;
-
-        case QgsPointCloudAttribute::Short:
-          blue = *( short * )( ptr + i * recordSize + blueOffset );
-          break;
-
-        case QgsPointCloudAttribute::Float:
-          blue = *( float * )( ptr + i * recordSize + blueOffset );
-          break;
-
-        case QgsPointCloudAttribute::Double:
-          blue = *( double * )( ptr + i * recordSize + blueOffset );
-          break;
-      }
+      context.getAttribute( ptr, i * recordSize + blueOffset, blueType, blue );
 
       //skip if red, green or blue not in displayable range
       if ( ( useRedContrastEnhancement && !mRedContrastEnhancement->isValueInDisplayableRange( red ) )
@@ -192,12 +148,7 @@ void QgsPointCloudRgbRenderer::renderBlock( const QgsPointCloudBlock *block, Qgs
         blue = mBlueContrastEnhancement->enhanceContrast( blue );
       }
 
-      mapToPixel.transformInPlace( x, y );
-
-      pen.setColor( QColor( red, green, blue ) );
-      context.renderContext().painter()->setPen( pen );
-      context.renderContext().painter()->drawPoint( QPointF( x, y ) );
-
+      drawPoint( x, y, QColor( red, green, blue ), context );
       rendered++;
     }
   }
@@ -281,21 +232,11 @@ QDomElement QgsPointCloudRgbRenderer::save( QDomDocument &doc, const QgsReadWrit
   return rendererElem;
 }
 
-void QgsPointCloudRgbRenderer::startRender( QgsPointCloudRenderContext &context )
-{
-  QgsPointCloudRenderer::startRender( context );
-
-  mPainterPenWidth = context.renderContext().convertToPainterUnits( pointSize(), pointSizeUnit(), pointSizeMapUnitScale() );
-}
-
-void QgsPointCloudRgbRenderer::stopRender( QgsPointCloudRenderContext &context )
-{
-  QgsPointCloudRenderer::stopRender( context );
-}
-
 QSet<QString> QgsPointCloudRgbRenderer::usedAttributes( const QgsPointCloudRenderContext & ) const
 {
-  return QSet<QString>() << mRedAttribute << mGreenAttribute << mBlueAttribute;
+  QSet<QString> res;
+  res << mRedAttribute << mGreenAttribute << mBlueAttribute;
+  return res;
 }
 
 QString QgsPointCloudRgbRenderer::redAttribute() const

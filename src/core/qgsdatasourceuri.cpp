@@ -77,7 +77,7 @@ QgsDataSourceUri::QgsDataSourceUri( const QString &u )
 
       if ( pname == QLatin1String( "table" ) )
       {
-        if ( uri[i] == '.' )
+        if ( i < uri.length() && uri[i] == '.' )
         {
           i++;
 
@@ -89,7 +89,7 @@ QgsDataSourceUri::QgsDataSourceUri( const QString &u )
           mTable = pval;
         }
 
-        if ( uri[i] == '(' )
+        if ( i < uri.length() && uri[i] == '(' )
         {
           i++;
 

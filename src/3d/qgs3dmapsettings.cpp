@@ -54,6 +54,7 @@ Qgs3DMapSettings::Qgs3DMapSettings( const Qgs3DMapSettings &other )
   , mPointLights( other.mPointLights )
   , mDirectionalLights( other.mDirectionalLights )
   , mFieldOfView( other.mFieldOfView )
+  , mProjectionType( other.mProjectionType )
   , mLayers( other.mLayers )
   , mTerrainLayers( other.mTerrainLayers )
   , mRenderers() // initialized in body
@@ -96,6 +97,7 @@ void Qgs3DMapSettings::readXml( const QDomElement &elem, const QgsReadWriteConte
   if ( !elemCamera.isNull() )
   {
     mFieldOfView = elemCamera.attribute( QStringLiteral( "field-of-view" ), QStringLiteral( "45" ) ).toFloat();
+    mProjectionType = static_cast< Qt3DRender::QCameraLens::ProjectionType >( elemCamera.attribute( QStringLiteral( "projection-type" ), QStringLiteral( "1" ) ).toInt() );
   }
 
   QDomElement elemColor = elem.firstChildElement( QStringLiteral( "color" ) );
@@ -287,6 +289,7 @@ QDomElement Qgs3DMapSettings::writeXml( QDomDocument &doc, const QgsReadWriteCon
 
   QDomElement elemCamera = doc.createElement( QStringLiteral( "camera" ) );
   elemCamera.setAttribute( QStringLiteral( "field-of-view" ), mFieldOfView );
+  elemCamera.setAttribute( QStringLiteral( "projection-type" ), static_cast< int >( mProjectionType ) );
   elem.appendChild( elemCamera );
 
   QDomElement elemColor = doc.createElement( QStringLiteral( "color" ) );
@@ -598,7 +601,14 @@ float Qgs3DMapSettings::maxTerrainGroundError() const
 
 void Qgs3DMapSettings::setTerrainGenerator( QgsTerrainGenerator *gen )
 {
+  if ( mTerrainGenerator )
+  {
+    disconnect( mTerrainGenerator.get(), &QgsTerrainGenerator::extentChanged, this, &Qgs3DMapSettings::terrainGeneratorChanged );
+  }
+
   mTerrainGenerator.reset( gen );
+  connect( mTerrainGenerator.get(), &QgsTerrainGenerator::extentChanged, this, &Qgs3DMapSettings::terrainGeneratorChanged );
+
   emit terrainGeneratorChanged();
 }
 
@@ -732,6 +742,15 @@ void Qgs3DMapSettings::setFieldOfView( const float fieldOfView )
 
   mFieldOfView = fieldOfView;
   emit fieldOfViewChanged();
+}
+
+void Qgs3DMapSettings::setProjectionType( const Qt3DRender::QCameraLens::ProjectionType projectionType )
+{
+  if ( mProjectionType == projectionType )
+    return;
+
+  mProjectionType = projectionType;
+  emit projectionTypeChanged();
 }
 
 void Qgs3DMapSettings::setSkyboxSettings( const QgsSkyboxSettings &skyboxSettings )

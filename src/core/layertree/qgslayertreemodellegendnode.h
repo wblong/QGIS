@@ -265,6 +265,32 @@ class CORE_EXPORT QgsLayerTreeModelLegendNode : public QObject
      */
     virtual QSizeF drawSymbolText( const QgsLegendSettings &settings, ItemContext *ctx, QSizeF symbolSize ) const;
 
+  public slots:
+
+    /**
+     * Checks all checkable items belonging to the same layer as this node.
+     * \see uncheckAllItems()
+     * \see toggleAllItems()
+     * \since QGIS 3.18 (previously was available in QgsSymbolLegendNode subclass only)
+     */
+    void checkAllItems();
+
+    /**
+     * Unchecks all checkable items belonging to the same layer as this node.
+     * \see checkAllItems()
+     * \see toggleAllItems()
+     * \since QGIS 3.18 (previously was available in QgsSymbolLegendNode subclass only)
+     */
+    void uncheckAllItems();
+
+    /**
+     * Toggle all checkable items belonging to the same layer as this node.
+     * \see checkAllItems()
+     * \see uncheckAllItems()
+     * \since QGIS 3.18 (previously was available in QgsSymbolLegendNode subclass only)
+     */
+    void toggleAllItems();
+
   signals:
     //! Emitted on internal data change so the layer tree model can forward the signal to views
     void dataChanged();
@@ -290,6 +316,14 @@ class CORE_EXPORT QgsLayerTreeModelLegendNode : public QObject
     QgsLegendPatchShape mPatchShape;
     QSizeF mUserSize;
     bool mColumnBreakBeforeNode = false;
+
+  private:
+
+    /**
+     * Sets all items belonging to the same layer as this node to the same check state.
+     * \param state check state
+     */
+    void checkAll( bool state );
 };
 Q_DECLARE_METATYPE( QgsLayerTreeModelLegendNode::NodeTypes )
 
@@ -453,32 +487,6 @@ class CORE_EXPORT QgsSymbolLegendNode : public QgsLayerTreeModelLegendNode
      */
     QString evaluateLabel( const QgsExpressionContext &context = QgsExpressionContext(), const QString &label = QString() );
 
-  public slots:
-
-    /**
-     * Checks all items belonging to the same layer as this node.
-     * \see uncheckAllItems()
-     * \see toggleAllItems()
-     * \since QGIS 2.14
-     */
-    void checkAllItems();
-
-    /**
-     * Unchecks all items belonging to the same layer as this node.
-     * \see checkAllItems()
-     * \see toggleAllItems()
-     * \since QGIS 2.14
-     */
-    void uncheckAllItems();
-
-    /**
-     * Toggle all items belonging to the same layer as this node.
-     * \see checkAllItems()
-     * \see uncheckAllItems()
-     * \since QGIS 3.6
-     */
-    void toggleAllItems();
-
   private:
     void updateLabel();
 
@@ -506,11 +514,6 @@ class CORE_EXPORT QgsSymbolLegendNode : public QgsLayerTreeModelLegendNode
      */
     QgsExpressionContextScope *createSymbolScope() const SIP_FACTORY;
 
-    /**
-     * Sets all items belonging to the same layer as this node to the same check state.
-     * \param state check state
-     */
-    void checkAll( bool state );
 };
 
 
@@ -594,18 +597,36 @@ class CORE_EXPORT QgsRasterSymbolLegendNode : public QgsLayerTreeModelLegendNode
      * \param color color
      * \param label label
      * \param parent attach a parent QObject to the legend node.
+     * \param isCheckable set to TRUE to enable the checkbox for the node (since QGIS 3.18)
+     * \param ruleKey optional identifier to allow a unique ID to be assigned to the node by a renderer (since QGIS 3.18)
      */
-    QgsRasterSymbolLegendNode( QgsLayerTreeLayer *nodeLayer, const QColor &color, const QString &label, QObject *parent SIP_TRANSFERTHIS = nullptr );
+    QgsRasterSymbolLegendNode( QgsLayerTreeLayer *nodeLayer, const QColor &color, const QString &label, QObject *parent SIP_TRANSFERTHIS = nullptr, bool isCheckable = false, const QString &ruleKey = QString() );
 
+    Qt::ItemFlags flags() const override;
     QVariant data( int role ) const override;
-
+    bool setData( const QVariant &value, int role ) override;
     QSizeF drawSymbol( const QgsLegendSettings &settings, ItemContext *ctx, double itemHeight ) const override;
-
     QJsonObject exportSymbolToJson( const QgsLegendSettings &settings, const QgsRenderContext &context ) const override;
+
+    /**
+     * Returns the unique identifier of node for identification of the item within renderer.
+     *
+     * \since QGIS 3.18
+     */
+    QString ruleKey() const { return mRuleKey; }
+
+    /**
+     * Returns whether the item is user-checkable - whether renderer supports enabling/disabling it.
+     *
+     * \since QGIS 3.18
+     */
+    bool isCheckable() const { return mCheckable; }
 
   private:
     QColor mColor;
     QString mLabel;
+    bool mCheckable = false;
+    QString mRuleKey;
 };
 
 class QgsImageFetcher;

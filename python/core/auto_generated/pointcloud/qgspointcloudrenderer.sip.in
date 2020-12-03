@@ -11,7 +11,6 @@
 
 
 
-
 class QgsPointCloudRenderContext
 {
 %Docstring
@@ -89,6 +88,8 @@ Returns the size of a single point record.
 Returns the offset for the x value in a point record.
 
 .. seealso:: :py:func:`yOffset`
+
+.. seealso:: :py:func:`zOffset`
 %End
 
     int yOffset() const;
@@ -96,7 +97,19 @@ Returns the offset for the x value in a point record.
 Returns the offset for the y value in a point record.
 
 .. seealso:: :py:func:`xOffset`
+
+.. seealso:: :py:func:`zOffset`
 %End
+
+    int zOffset() const;
+%Docstring
+Returns the offset for the y value in a point record.
+
+.. seealso:: :py:func:`xOffset`
+
+.. seealso:: :py:func:`yOffset`
+%End
+
 
   private:
     QgsPointCloudRenderContext( const QgsPointCloudRenderContext &rh );
@@ -121,10 +134,20 @@ Abstract base class for 2d point cloud renderers.
 
     if ( type == QLatin1String( "rgb" ) )
       sipType = sipType_QgsPointCloudRgbRenderer;
+    else if ( type == QLatin1String( "ramp" ) )
+      sipType = sipType_QgsPointCloudAttributeByRampRenderer;
+    else if ( type == QLatin1String( "classified" ) )
+      sipType = sipType_QgsPointCloudClassifiedRenderer;
     else
       sipType = 0;
 %End
   public:
+
+    enum PointSymbol
+    {
+      Square,
+      Circle,
+    };
 
     QgsPointCloudRenderer();
 %Docstring
@@ -205,6 +228,20 @@ Calls to :py:func:`~QgsPointCloudRenderer.stopRender` must always be preceded by
 .. seealso:: :py:func:`startRender`
 %End
 
+    virtual bool legendItemChecked( const QString &key );
+%Docstring
+Returns ``True`` if the legend item with the specified ``key`` is checked.
+
+.. seealso:: :py:func:`checkLegendItem`
+%End
+
+    virtual void checkLegendItem( const QString &key, bool state = true );
+%Docstring
+Called when the check state of the legend item with the specified ``key`` is changed.
+
+.. seealso:: :py:func:`legendItemChecked`
+%End
+
     void setPointSize( double size );
 %Docstring
 Sets the point ``size``. Point size units are specified via :py:func:`~QgsPointCloudRenderer.setPointSizeUnit`.
@@ -273,6 +310,20 @@ Returns the map unit scale used for the point size.
 .. seealso:: :py:func:`pointSize`
 %End
 
+    PointSymbol pointSymbol() const;
+%Docstring
+Returns the symbol used by the renderer for drawing points.
+
+.. seealso:: :py:func:`setPointSymbol`
+%End
+
+    void setPointSymbol( PointSymbol symbol );
+%Docstring
+Sets the ``symbol`` used by the renderer for drawing points.
+
+.. seealso:: :py:func:`pointSymbol`
+%End
+
     double maximumScreenError() const;
 %Docstring
 Returns the maximum screen error allowed when rendering the point cloud.
@@ -317,11 +368,31 @@ Sets the ``unit`` for the maximum screen error allowed when rendering the point 
 .. seealso:: :py:func:`maximumScreenErrorUnit`
 %End
 
+    virtual QList<QgsLayerTreeModelLegendNode *> createLegendNodes( QgsLayerTreeLayer *nodeLayer ) /Factory/;
+%Docstring
+Creates a set of legend nodes representing the renderer.
+%End
+
+    virtual QStringList legendRuleKeys() const;
+%Docstring
+Returns a list of all rule keys for legend nodes created by the renderer.
+%End
+
   protected:
 
     static void pointXY( QgsPointCloudRenderContext &context, const char *ptr, int i, double &x, double &y );
 %Docstring
 Retrieves the x and y coordinate for the point at index ``i``.
+%End
+
+    static double pointZ( QgsPointCloudRenderContext &context, const char *ptr, int i );
+%Docstring
+Retrieves the z value for the point at index ``i``.
+%End
+
+    void drawPoint( double x, double y, const QColor &color, QgsPointCloudRenderContext &context ) const;
+%Docstring
+Draws a point using a ``color`` at the specified ``x`` and ``y`` (in map coordinates).
 %End
 
     void copyCommonProperties( QgsPointCloudRenderer *destination ) const;

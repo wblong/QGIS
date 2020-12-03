@@ -26,7 +26,8 @@
 #include "qgspointcloudattribute.h"
 
 class QgsPointCloudBlock;
-
+class QgsLayerTreeLayer;
+class QgsLayerTreeModelLegendNode;
 
 /**
  * \ingroup core
@@ -111,6 +112,7 @@ class CORE_EXPORT QgsPointCloudRenderContext
      * Returns the offset for the x value in a point record.
      *
      * \see yOffset()
+     * \see zOffset()
      */
     int xOffset() const { return mXOffset; }
 
@@ -118,8 +120,55 @@ class CORE_EXPORT QgsPointCloudRenderContext
      * Returns the offset for the y value in a point record.
      *
      * \see xOffset()
+     * \see zOffset()
      */
     int yOffset() const { return mYOffset; }
+
+    /**
+     * Returns the offset for the y value in a point record.
+     *
+     * \see xOffset()
+     * \see yOffset()
+     */
+    int zOffset() const { return mZOffset; }
+
+#ifndef SIP_RUN
+
+    /**
+     * Retrieves the attribute \a value from \a data at the specified \a offset, where
+     * \a type indicates the original data type for the attribute.
+     */
+    template <typename T>
+    void getAttribute( const char *data, std::size_t offset, QgsPointCloudAttribute::DataType type, T &value ) const
+    {
+      switch ( type )
+      {
+        case QgsPointCloudAttribute::Char:
+          value = *( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::Int32:
+          value = *reinterpret_cast< const qint32 * >( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::Short:
+          value = *reinterpret_cast< const short * >( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::UShort:
+          value = *reinterpret_cast< const unsigned short * >( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::Float:
+          value = *reinterpret_cast< const float * >( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::Double:
+          value = *reinterpret_cast< const double * >( data + offset );
+          return;
+      }
+    }
+#endif
 
   private:
 #ifdef SIP_RUN
@@ -134,6 +183,7 @@ class CORE_EXPORT QgsPointCloudRenderContext
     int mPointRecordSize = 0;
     int mXOffset = 0;
     int mYOffset = 0;
+    int mZOffset = 0;
 };
 
 
@@ -155,12 +205,25 @@ class CORE_EXPORT QgsPointCloudRenderer
 
     if ( type == QLatin1String( "rgb" ) )
       sipType = sipType_QgsPointCloudRgbRenderer;
+    else if ( type == QLatin1String( "ramp" ) )
+      sipType = sipType_QgsPointCloudAttributeByRampRenderer;
+    else if ( type == QLatin1String( "classified" ) )
+      sipType = sipType_QgsPointCloudClassifiedRenderer;
     else
       sipType = 0;
     SIP_END
 #endif
 
   public:
+
+    /**
+     * Rendering symbols for points.
+     */
+    enum PointSymbol
+    {
+      Square, //!< Renders points as squares
+      Circle, //!< Renders points as circles
+    };
 
     /**
      * Constructor for QgsPointCloudRenderer.
@@ -239,6 +302,20 @@ class CORE_EXPORT QgsPointCloudRenderer
     virtual void stopRender( QgsPointCloudRenderContext &context );
 
     /**
+     * Returns TRUE if the legend item with the specified \a key is checked.
+     *
+     * \see checkLegendItem()
+     */
+    virtual bool legendItemChecked( const QString &key );
+
+    /**
+     * Called when the check state of the legend item with the specified \a key is changed.
+     *
+     * \see legendItemChecked()
+     */
+    virtual void checkLegendItem( const QString &key, bool state = true );
+
+    /**
      * Sets the point \a size. Point size units are specified via setPointSizeUnit().
      * \see pointSize()
      * \see setPointSizeUnit()
@@ -291,6 +368,20 @@ class CORE_EXPORT QgsPointCloudRenderer
     const QgsMapUnitScale &pointSizeMapUnitScale() const { return mPointSizeMapUnitScale; }
 
     /**
+     * Returns the symbol used by the renderer for drawing points.
+     *
+     * \see setPointSymbol()
+     */
+    PointSymbol pointSymbol() const;
+
+    /**
+     * Sets the \a symbol used by the renderer for drawing points.
+     *
+     * \see pointSymbol()
+     */
+    void setPointSymbol( PointSymbol symbol );
+
+    /**
      * Returns the maximum screen error allowed when rendering the point cloud.
      *
      * Larger values result in a faster render with less points rendered.
@@ -330,6 +421,16 @@ class CORE_EXPORT QgsPointCloudRenderer
      */
     void setMaximumScreenErrorUnit( QgsUnitTypes::RenderUnit unit );
 
+    /**
+     * Creates a set of legend nodes representing the renderer.
+     */
+    virtual QList<QgsLayerTreeModelLegendNode *> createLegendNodes( QgsLayerTreeLayer *nodeLayer ) SIP_FACTORY;
+
+    /**
+     * Returns a list of all rule keys for legend nodes created by the renderer.
+     */
+    virtual QStringList legendRuleKeys() const;
+
   protected:
 
     /**
@@ -337,11 +438,44 @@ class CORE_EXPORT QgsPointCloudRenderer
      */
     static void pointXY( QgsPointCloudRenderContext &context, const char *ptr, int i, double &x, double &y )
     {
-      qint32 ix = *( qint32 * )( ptr + i * context.pointRecordSize() + context.xOffset() );
-      qint32 iy = *( qint32 * )( ptr + i * context.pointRecordSize() + context.yOffset() );
-
+      const qint32 ix = *reinterpret_cast< const qint32 * >( ptr + i * context.pointRecordSize() + context.xOffset() );
+      const qint32 iy = *reinterpret_cast< const qint32 * >( ptr + i * context.pointRecordSize() + context.yOffset() );
       x = context.offset().x() + context.scale().x() * ix;
       y = context.offset().y() + context.scale().y() * iy;
+    }
+
+    /**
+     * Retrieves the z value for the point at index \a i.
+     */
+    static double pointZ( QgsPointCloudRenderContext &context, const char *ptr, int i )
+    {
+      const qint32 iz = *reinterpret_cast<const qint32 * >( ptr + i * context.pointRecordSize() + context.zOffset() );
+      return context.offset().z() + context.scale().z() * iz;
+    }
+
+    /**
+     * Draws a point using a \a color at the specified \a x and \a y (in map coordinates).
+     */
+    void drawPoint( double x, double y, const QColor &color, QgsPointCloudRenderContext &context ) const
+    {
+      context.renderContext().mapToPixel().transformInPlace( x, y );
+      QPainter *painter = context.renderContext().painter();
+      switch ( mPointSymbol )
+      {
+        case Square:
+          painter->fillRect( QRectF( x - mPainterPenWidth * 0.5,
+                                     y - mPainterPenWidth * 0.5,
+                                     mPainterPenWidth, mPainterPenWidth ), color );
+          break;
+
+        case Circle:
+          painter->setBrush( QBrush( color ) );
+          painter->setPen( Qt::NoPen );
+          painter->drawEllipse( QRectF( x - mPainterPenWidth * 0.5,
+                                        y - mPainterPenWidth * 0.5,
+                                        mPainterPenWidth, mPainterPenWidth ) );
+          break;
+      };
     }
 
     /**
@@ -375,81 +509,15 @@ class CORE_EXPORT QgsPointCloudRenderer
     QThread *mThread = nullptr;
 #endif
 
-    double mMaximumScreenError = 5.0;
+    double mMaximumScreenError = 1.0;
     QgsUnitTypes::RenderUnit mMaximumScreenErrorUnit = QgsUnitTypes::RenderMillimeters;
 
     double mPointSize = 1;
     QgsUnitTypes::RenderUnit mPointSizeUnit = QgsUnitTypes::RenderMillimeters;
     QgsMapUnitScale mPointSizeMapUnitScale;
 
-};
-
-#ifndef SIP_RUN
-
-#include "qgscolorramp.h"
-
-
-///@cond PRIVATE
-
-class CORE_EXPORT QgsDummyPointCloudRenderer : public QgsPointCloudRenderer
-{
-  public:
-
-    QgsDummyPointCloudRenderer();
-
-    QgsPointCloudRenderer *clone() const override;
-    void renderBlock( const QgsPointCloudBlock *block, QgsPointCloudRenderContext &context ) override;
-    QDomElement save( QDomDocument &doc, const QgsReadWriteContext &context ) const override;
-    void startRender( QgsPointCloudRenderContext &context ) override;
-    void stopRender( QgsPointCloudRenderContext &context ) override;
-    QSet< QString > usedAttributes( const QgsPointCloudRenderContext &context ) const override;
-
-    QString type() const override { return QStringLiteral( "dummy" ); }
-
-    /**
-     * Creates a dummy renderer from an XML \a element.
-     */
-    static QgsPointCloudRenderer *create( QDomElement &element, const QgsReadWriteContext &context ) SIP_FACTORY;
-
-    //! Returns z min
-    double zMin() const;
-    //! Sets z min
-    void setZMin( double value );
-
-    //! Returns z max
-    double zMax() const;
-
-    //! Sets z max
-    void setZMax( double value );
-
-    //! Returns pen width
-    int penWidth() const;
-
-    //! Sets pen width
-    void setPenWidth( int value );
-
-    //! Returns color ramp
-    QgsColorRamp *colorRamp() const;
-
-    //! Sets color ramp (ownership is transferrred)
-    void setColorRamp( QgsColorRamp *value SIP_TRANSFER );
-
-    //! Returns maximum allowed screen error in pixels
-    float maximumScreenError() const;
-
-    QString attribute() const;
-    void setAttribute( const QString &attribute );
-
-  private:
-    double mZMin = 0, mZMax = 100;
-    QString mAttribute = "Z";
-    int mPenWidth = 1;
+    PointSymbol mPointSymbol = Square;
     int mPainterPenWidth = 1;
-    std::unique_ptr<QgsColorRamp> mColorRamp;
-    float mMaximumScreenError = 5;
-
 };
 
-///@endcond
-#endif
 #endif // QGSPOINTCLOUDRENDERER_H

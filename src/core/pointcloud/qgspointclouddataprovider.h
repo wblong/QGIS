@@ -21,10 +21,12 @@
 #include "qgis_core.h"
 #include "qgsdataprovider.h"
 #include "qgspointcloudattribute.h"
+#include "qgsstatisticalsummary.h"
 #include <memory>
 
 class QgsPointCloudIndex;
 class QgsPointCloudRenderer;
+class QgsGeometry;
 
 /**
  * \ingroup core
@@ -81,6 +83,24 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
     virtual QgsPointCloudIndex *index() const SIP_SKIP {return nullptr;}
 
     /**
+     * Returns the total number of points available in the dataset.
+     */
+    virtual int pointCount() const = 0;
+
+    /**
+     * Returns the polygon bounds of the layer. The CRS of the returned geometry will match the provider's crs().
+     *
+     * This method will return the best approximation for the actual bounds of points contained in the
+     * dataset available from the provider's metadata. This may match the bounding box rectangle returned
+     * by extent(), or for some datasets a "convex hull" style polygon representing a more precise bounds
+     * will be returned.
+     *
+     * This method will not attempt to calculate the data bounds, rather it will return only whatever precomputed bounds
+     * are included in the data source's metadata.
+     */
+    virtual QgsGeometry polygonBounds() const;
+
+    /**
      * Creates a new 2D point cloud renderer, using provider backend specific information.
      *
      * The \a configuration map can be used to pass provider-specific configuration maps to the provider to
@@ -94,6 +114,118 @@ class CORE_EXPORT QgsPointCloudDataProvider: public QgsDataProvider
      * providers will return NULLPTR.
      */
     virtual QgsPointCloudRenderer *createRenderer( const QVariantMap &configuration = QVariantMap() ) const SIP_FACTORY;
+
+#ifndef SIP_RUN
+
+    /**
+     * Returns a statistic for the specified \a attribute, taken only from the metadata of the point cloud
+     * data source.
+     *
+     * This method will not perform any statistical calculations, rather it will return only precomputed attribute
+     * statistics which are included in the data source's metadata. Not all data sources include this information
+     * in the metadata, and even for sources with statistical metadata only some \a statistic values may be available.
+     *
+     * If no matching precalculated statistic is available then an invalid variant will be returned.
+     */
+    virtual QVariant metadataStatistic( const QString &attribute, QgsStatisticalSummary::Statistic statistic ) const;
+#else
+
+    /**
+     * Returns a statistic for the specified \a attribute, taken only from the metadata of the point cloud
+     * data source.
+     *
+     * This method will not perform any statistical calculations, rather it will return only precomputed attribute
+     * statistics which are included in the data source's metadata. Not all data sources include this information
+     * in the metadata, and even for sources with statistical metadata only some \a statistic values may be available.
+     *
+     * \throws ValueError if no matching precalculated statistic is available for the attribute.
+     */
+    SIP_PYOBJECT metadataStatistic( const QString &attribute, QgsStatisticalSummary::Statistic statistic ) const;
+    % MethodCode
+    {
+      const QVariant res = sipCpp->metadataStatistic( *a0, a1 );
+      if ( !res.isValid() )
+      {
+        PyErr_SetString( PyExc_ValueError, QStringLiteral( "Statistic is not available" ).toUtf8().constData() );
+        sipIsErr = 1;
+      }
+      else
+      {
+        QVariant *v = new QVariant( res );
+        sipRes = sipConvertFromNewType( v, sipType_QVariant, Py_None );
+      }
+    }
+    % End
+#endif
+
+    /**
+     * Returns a list of existing classes which are present for the specified \a attribute, taken only from the
+     * metadata of the point cloud data source.
+     *
+     * This method will not perform any classification or scan for available classes, rather it will return only
+     * precomputed classes which are included in the data source's metadata. Not all data sources include this information
+     * in the metadata.
+     */
+    virtual QVariantList metadataClasses( const QString &attribute ) const;
+
+
+#ifndef SIP_RUN
+
+    /**
+     * Returns a statistic for one class \a value from the specified \a attribute, taken only from the metadata of the point cloud
+     * data source.
+     *
+     * This method will not perform any statistical calculations, rather it will return only precomputed class
+     * statistics which are included in the data source's metadata. Not all data sources include this information
+     * in the metadata, and even for sources with statistical metadata only some \a statistic values may be available.
+     *
+     * If no matching precalculated statistic is available then an invalid variant will be returned.
+     */
+    virtual QVariant metadataClassStatistic( const QString &attribute, const QVariant &value, QgsStatisticalSummary::Statistic statistic ) const;
+#else
+
+    /**
+     * Returns a statistic for one class \a value from the specified \a attribute, taken only from the metadata of the point cloud
+     * data source.
+     * This method will not perform any statistical calculations, rather it will return only precomputed class
+     * statistics which are included in the data source's metadata. Not all data sources include this information
+     * in the metadata, and even for sources with statistical metadata only some \a statistic values may be available.
+     *
+     * \throws ValueError if no matching precalculated statistic is available for the attribute.
+     */
+    SIP_PYOBJECT metadataClassStatistic( const QString &attribute, const QVariant &value, QgsStatisticalSummary::Statistic statistic ) const;
+    % MethodCode
+    {
+      const QVariant res = sipCpp->metadataClassStatistic( *a0, *a1, a2 );
+      if ( !res.isValid() )
+      {
+        PyErr_SetString( PyExc_ValueError, QStringLiteral( "Statistic is not available" ).toUtf8().constData() );
+        sipIsErr = 1;
+      }
+      else
+      {
+        QVariant *v = new QVariant( res );
+        sipRes = sipConvertFromNewType( v, sipType_QVariant, Py_None );
+      }
+    }
+    % End
+#endif
+
+    /**
+     * Returns the map of LAS classification code to untranslated string value, corresponding to the ASPRS Standard
+     * Lidar Point Classes.
+     *
+     * \see translatedLasClassificationCodes()
+     */
+    static QMap< int, QString > lasClassificationCodes();
+
+    /**
+     * Returns the map of LAS classification code to translated string value, corresponding to the ASPRS Standard
+     * Lidar Point Classes.
+     *
+     * \see lasClassificationCodes()
+     */
+    static QMap< int, QString > translatedLasClassificationCodes();
 
 };
 
