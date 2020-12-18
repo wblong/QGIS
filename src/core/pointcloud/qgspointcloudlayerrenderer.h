@@ -23,6 +23,7 @@
 #include "qgsmaplayerrenderer.h"
 #include "qgsreadwritecontext.h"
 #include "qgspointcloudindex.h"
+#include "qgsgeometry.h"
 
 #include <QDomElement>
 #include <QString>
@@ -54,6 +55,7 @@ class CORE_EXPORT QgsPointCloudLayerRenderer: public QgsMapLayerRenderer
     ~QgsPointCloudLayerRenderer();
 
     bool render() override;
+    bool forceRasterRender() const override;
 
   private:
 
@@ -66,8 +68,12 @@ class CORE_EXPORT QgsPointCloudLayerRenderer: public QgsMapLayerRenderer
 
     QgsVector3D mScale;
     QgsVector3D mOffset;
+    double mZOffset = 0;
+    double mZScale = 1.0;
 
+    QgsPointCloudAttributeCollection mLayerAttributes;
     QgsPointCloudAttributeCollection mAttributes;
+    QgsGeometry mCloudExtent;
 
 };
 

@@ -37,20 +37,18 @@ class QgsPointCloudLayer3DRendererWidget : public QgsMapLayerConfigWidget
     explicit QgsPointCloudLayer3DRendererWidget( QgsPointCloudLayer *layer, QgsMapCanvas *canvas, QWidget *parent = nullptr );
 
     void syncToLayer( QgsMapLayer *layer ) override;
+    void setDockMode( bool dockMode ) override;
 
     //! no transfer of ownership
     void setRenderer( const QgsPointCloudLayer3DRenderer *renderer );
     //! no transfer of ownership
     QgsPointCloudLayer3DRenderer *renderer();
 
+
   public slots:
     void apply() override;
 
-  private slots:
-    void onEnabledClicked();
-
   private:
-    QCheckBox *mChkEnabled = nullptr;
     QgsPointCloud3DSymbolWidget *mWidgetPointCloudSymbol = nullptr;
 };
 

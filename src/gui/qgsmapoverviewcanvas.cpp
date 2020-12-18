@@ -49,7 +49,7 @@ QgsMapOverviewCanvas::QgsMapOverviewCanvas( QWidget *parent, QgsMapCanvas *mapCa
   connect( mMapCanvas, &QgsMapCanvas::destinationCrsChanged, this, &QgsMapOverviewCanvas::destinationCrsChanged );
   connect( mMapCanvas, &QgsMapCanvas::transformContextChanged, this, &QgsMapOverviewCanvas::transformContextChanged );
 
-  connect( QgsProject::instance()->viewSettings(), &QgsProjectViewSettings::presetFullExtentChanged, this, &QgsMapOverviewCanvas::updateFullExtent );
+  connect( QgsProject::instance()->viewSettings(), &QgsProjectViewSettings::presetFullExtentChanged, this, &QgsMapOverviewCanvas::refresh );
 }
 
 void QgsMapOverviewCanvas::resizeEvent( QResizeEvent *e )
@@ -144,6 +144,28 @@ void QgsMapOverviewCanvas::mouseReleaseEvent( QMouseEvent *e )
   }
 }
 
+
+void QgsMapOverviewCanvas::wheelEvent( QWheelEvent *e )
+{
+  double zoomFactor = e->angleDelta().y() > 0 ? 1. / mMapCanvas->zoomInFactor() : mMapCanvas->zoomOutFactor();
+
+  // "Normal" mouse have an angle delta of 120, precision mouses provide data faster, in smaller steps
+  zoomFactor = 1.0 + ( zoomFactor - 1.0 ) / 120.0 * std::fabs( e->angleDelta().y() );
+
+  if ( e->modifiers() & Qt::ControlModifier )
+  {
+    //holding ctrl while wheel zooming results in a finer zoom
+    zoomFactor = 1.0 + ( zoomFactor - 1.0 ) / 20.0;
+  }
+
+  double signedWheelFactor = e->angleDelta().y() > 0 ? 1 / zoomFactor : zoomFactor;
+
+  const QgsMapToPixel &cXf = mSettings.mapToPixel();
+  QgsPointXY center = cXf.toMapCoordinates( e->pos() );
+
+  updatePanningWidget( e->pos() );
+  mMapCanvas->zoomByFactor( signedWheelFactor, &center );
+}
 
 void QgsMapOverviewCanvas::mouseMoveEvent( QMouseEvent *e )
 {

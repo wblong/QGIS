@@ -36,6 +36,7 @@ set(QGIS_3D_SRCS
   qgspostprocessingentity.cpp
   qgspreviewquad.cpp
   qgsshadowsettings.cpp
+  qgscolorramptexture.cpp
 
   qgspointcloudlayer3drenderer.cpp
   qgspointcloudlayerchunkloader_p.cpp
@@ -71,6 +72,7 @@ set(QGIS_3D_SRCS
   symbols/qgspolygon3dsymbol.cpp
   symbols/qgspolygon3dsymbol_p.cpp
   symbols/qgspointcloud3dsymbol.cpp
+  symbols/qgspointcloud3dsymbol_p.cpp
 
   terrain/qgsdemterraingenerator.cpp
   terrain/qgsdemterraintilegeometry_p.cpp
@@ -167,6 +169,7 @@ set(QGIS_3D_PRIVATE_HDRS
   symbols/qgsmesh3dsymbol_p.h
   symbols/qgspoint3dsymbol_p.h
   symbols/qgspolygon3dsymbol_p.h
+  symbols/qgspointcloud3dsymbol_p.h
   terrain/qgsdemterraintilegeometry_p.h
   terrain/qgsdemterraintileloader_p.h
   terrain/qgsterrainentity_p.h
@@ -176,6 +179,7 @@ set(QGIS_3D_PRIVATE_HDRS
   mesh/qgsmesh3dentity_p.h
   mesh/qgsmesh3dgeometry_p.h
   mesh/qgsmesh3dmaterial_p.h
+  qgscolorramptexture.h
 )
 
 set (QGIS_3D_RCCS  shaders.qrc  ../../resources/3d/textures/textures.qrc)

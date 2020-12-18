@@ -162,7 +162,7 @@ void QgsMapToolSelectUtils::setSelectedFeatures( QgsMapCanvas *canvas, const Qgs
   QApplication::restoreOverrideCursor();
 }
 
-static bool transformSelectGeometry( const QgsGeometry &selectGeometry,  QgsGeometry selectGeomTrans, const QgsCoordinateTransform &ct )
+static bool transformSelectGeometry( const QgsGeometry &selectGeometry,  QgsGeometry &selectGeomTrans, const QgsCoordinateTransform &ct )
 {
   selectGeomTrans = selectGeometry;
   try
@@ -228,9 +228,9 @@ QgsFeatureIds QgsMapToolSelectUtils::getMatchingFeatures( QgsMapCanvas *canvas, 
   // the rubber band.
   // For example, if you project a world map onto a globe using EPSG 2163
   // and then click somewhere off the globe, an exception will be thrown.
-  QgsGeometry selectGeomTrans = selectGeometry;
+  QgsGeometry selectGeomTrans;
   QgsCoordinateTransform ct( canvas->mapSettings().destinationCrs(), vlayer->crs(), QgsProject::instance() );
-  if ( !transformSelectGeometry( selectGeometry, selectGeometry, ct ) )
+  if ( !transformSelectGeometry( selectGeometry, selectGeomTrans, ct ) )
     return newSelectedFeatures;
 
   QgsDebugMsgLevel( "Selection layer: " + vlayer->name(), 3 );
@@ -498,7 +498,7 @@ QString QgsMapToolSelectUtils::QgsMapToolSelectMenuActions::textForChooseAll( qi
     switch ( mBehavior )
     {
       case QgsVectorLayer::SetSelection:
-        return tr( "Select" );
+        return tr( "Select Feature" );
         break;
       case QgsVectorLayer::AddToSelection:
         return tr( "Add to Selection" );
@@ -542,16 +542,16 @@ QString QgsMapToolSelectUtils::QgsMapToolSelectMenuActions::textForChooseOneMenu
   switch ( mBehavior )
   {
     case QgsVectorLayer::SetSelection:
-      return tr( "Select One" );
+      return tr( "Select Feature" );
       break;
     case QgsVectorLayer::AddToSelection:
-      return tr( "Add One to Selection" );
+      return tr( "Add Feature to Selection" );
       break;
     case QgsVectorLayer::IntersectSelection:
-      return tr( "Intersect One with Selection" );
+      return tr( "Intersect Feature with Selection" );
       break;
     case QgsVectorLayer::RemoveFromSelection:
-      return tr( "Remove One from Selection" );
+      return tr( "Remove Feature from Selection" );
       break;
   }
 
@@ -574,16 +574,19 @@ void QgsMapToolSelectUtils::QgsMapToolSelectMenuActions::populateChooseOneMenu( 
   QgsExpression exp = mVectorLayer->displayExpression();
   exp.prepare( &context );
 
-  for ( QgsFeatureId id : qgis::as_const( displayedFeatureIds ) )
+  QgsFeatureRequest request = QgsFeatureRequest().setFilterFids( displayedFeatureIds );
+  QgsFeature feat;
+  QgsFeatureIterator featureIt = mVectorLayer->getFeatures( request );
+  while ( featureIt.nextFeature( feat ) )
   {
-    QgsFeature feat = mVectorLayer->getFeature( id );
+    const QgsFeatureId id = feat.id();
     context.setFeature( feat );
 
     QString featureTitle = exp.evaluate( &context ).toString();
     if ( featureTitle.isEmpty() )
-      featureTitle = FID_TO_STRING( feat.id() );
+      featureTitle = tr( "Feature %1" ).arg( FID_TO_STRING( feat.id() ) );
 
-    QAction *featureAction = new QAction( tr( "Feature %1" ).arg( featureTitle ), this ) ;
+    QAction *featureAction = new QAction( featureTitle, this ) ;
     connect( featureAction, &QAction::triggered, this, [this, id]() {chooseOneCandidateFeature( id );} );
     connect( featureAction, &QAction::hovered, this, [this, id]() {this->highlightOneFeature( id );} );
     mMenuChooseOne->addAction( featureAction );

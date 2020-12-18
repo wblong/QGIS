@@ -18,6 +18,7 @@
 #include "qgssinglebandgrayrenderer.h"
 #include "qgscontrastenhancement.h"
 #include "qgsrastertransparency.h"
+#include "qgscolorramplegendnode.h"
 #include <QDomDocument>
 #include <QDomElement>
 #include <QImage>
@@ -198,8 +199,9 @@ void QgsSingleBandGrayRenderer::writeXml( QDomDocument &doc, QDomElement &parent
   parentElem.appendChild( rasterRendererElem );
 }
 
-void QgsSingleBandGrayRenderer::legendSymbologyItems( QList< QPair< QString, QColor > > &symbolItems ) const
+QList<QPair<QString, QColor> > QgsSingleBandGrayRenderer::legendSymbologyItems() const
 {
+  QList<QPair<QString, QColor> >  symbolItems;
   if ( mContrastEnhancement && mContrastEnhancement->contrastEnhancementAlgorithm() != QgsContrastEnhancement::NoEnhancement )
   {
     QColor minColor = ( mGradient == BlackToWhite ) ? Qt::black : Qt::white;
@@ -207,6 +209,27 @@ void QgsSingleBandGrayRenderer::legendSymbologyItems( QList< QPair< QString, QCo
     symbolItems.push_back( qMakePair( QString::number( mContrastEnhancement->minimumValue() ), minColor ) );
     symbolItems.push_back( qMakePair( QString::number( mContrastEnhancement->maximumValue() ), maxColor ) );
   }
+  return symbolItems;
+}
+
+QList<QgsLayerTreeModelLegendNode *> QgsSingleBandGrayRenderer::createLegendNodes( QgsLayerTreeLayer *nodeLayer )
+{
+  QList<QgsLayerTreeModelLegendNode *> res;
+  if ( mContrastEnhancement && mContrastEnhancement->contrastEnhancementAlgorithm() != QgsContrastEnhancement::NoEnhancement )
+  {
+    const QString name = displayBandName( mGrayBand );
+    if ( !name.isEmpty() )
+    {
+      res << new QgsSimpleLegendNode( nodeLayer, name );
+    }
+
+    const QColor minColor = ( mGradient == BlackToWhite ) ? Qt::black : Qt::white;
+    const QColor maxColor = ( mGradient == BlackToWhite ) ? Qt::white : Qt::black;
+    res << new QgsColorRampLegendNode( nodeLayer, new QgsGradientColorRamp( minColor, maxColor ),
+                                       QString::number( mContrastEnhancement->minimumValue() ),
+                                       QString::number( mContrastEnhancement->maximumValue() ) );
+  }
+  return res;
 }
 
 QList<int> QgsSingleBandGrayRenderer::usesBands() const
@@ -312,8 +335,7 @@ void QgsSingleBandGrayRenderer::toSld( QDomDocument &doc, QDomElement &element, 
 
   // for each color set a ColorMapEntry tag nested into "sld:ColorMap" tag
   // e.g. <ColorMapEntry color="#EEBE2F" quantity="-300" label="label" opacity="0"/>
-  QList< QPair< QString, QColor > > classes;
-  legendSymbologyItems( classes );
+  QList< QPair< QString, QColor > > classes = legendSymbologyItems();
 
   // add ColorMap tag
   QDomElement colorMapElem = doc.createElement( QStringLiteral( "sld:ColorMap" ) );

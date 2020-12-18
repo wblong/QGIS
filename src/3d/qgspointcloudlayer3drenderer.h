@@ -27,8 +27,153 @@
 
 class QgsPointCloudLayer;
 #include "qgspointcloud3dsymbol.h"
+#include "qgsfeature3dhandler_p.h"
 
 #ifndef SIP_RUN
+
+/**
+ * \ingroup core
+ * \class QgsPointCloud3DRenderContext
+ *
+ * Encapsulates the render context for a 3D point cloud rendering operation.
+ *
+ * \since QGIS 3.18
+ */
+class _3D_NO_EXPORT QgsPointCloud3DRenderContext : public Qgs3DRenderContext
+{
+  public:
+
+    /**
+     * Constructor for QgsPointCloud3DRenderContext.
+     *
+     * The \a zValueScale argument specifies any constant scaling factor which must be applied to z values
+     * taken from the point cloud index.
+     *
+     * The \a zValueFixedOffset argument specifies any constant offset value which must be added to z values
+     * taken from the point cloud index.
+     */
+    QgsPointCloud3DRenderContext( const Qgs3DMapSettings &map, std::unique_ptr< QgsPointCloud3DSymbol > symbol,
+                                  double zValueScale, double zValueFixedOffset );
+
+    //! QgsPointCloudRenderContext cannot be copied.
+    QgsPointCloud3DRenderContext( const QgsPointCloud3DRenderContext &rh ) = delete;
+
+    //! QgsPointCloudRenderContext cannot be copied.
+    QgsPointCloud3DRenderContext &operator=( const QgsPointCloud3DRenderContext & ) = delete;
+
+    /**
+     * Returns the attributes associated with the rendered block.
+     *
+     * \see setAttributes()
+     */
+    QgsPointCloudAttributeCollection attributes() const { return mAttributes; }
+
+    /**
+     * Sets the \a attributes associated with the rendered block.
+     *
+     * \see attributes()
+     */
+    void setAttributes( const QgsPointCloudAttributeCollection &attributes );
+
+    /**
+     * Returns the symbol used for rendering the point cloud
+     *
+     * \see setSymbol()
+     */
+    QgsPointCloud3DSymbol *symbol() const { return mSymbol.get(); }
+
+    /**
+     * Sets the \a symbol used for rendering the point cloud
+     * Takes ownership over the passed symbol
+     * \see symbol()
+     */
+    void setSymbol( QgsPointCloud3DSymbol *symbol );
+
+    /**
+     * Sets the list of categories of the classification that won't be rendered
+     * \see getFilteredOutValues()
+     */
+    void setFilteredOutCategories( const QgsPointCloudCategoryList &categories );
+
+    /**
+     * Returns a set containing the filtered out values
+     * \see setFilteredOutCategories()
+     */
+    QSet<int> getFilteredOutValues() const;
+
+    /**
+     * Retrieves the attribute \a value from \a data at the specified \a offset, where
+     * \a type indicates the original data type for the attribute.
+     */
+    template <typename T>
+    void getAttribute( const char *data, std::size_t offset, QgsPointCloudAttribute::DataType type, T &value ) const
+    {
+      switch ( type )
+      {
+        case QgsPointCloudAttribute::Char:
+          value = *( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::Int32:
+          value = *reinterpret_cast< const qint32 * >( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::Short:
+          value = *reinterpret_cast< const short * >( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::UShort:
+          value = *reinterpret_cast< const unsigned short * >( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::Float:
+          value = *reinterpret_cast< const float * >( data + offset );
+          return;
+
+        case QgsPointCloudAttribute::Double:
+          value = *reinterpret_cast< const double * >( data + offset );
+          return;
+      }
+    }
+
+    /**
+     * Returns any constant scaling factor which must be applied to z values taken from the point cloud index.
+     *
+     * \note Scaling of z values should be applied before the zValueFixedOffset().
+     */
+    double zValueScale() const { return mZValueScale; }
+
+    /**
+     * Returns any constant offset which must be applied to z values taken from the point cloud index.
+     *
+     * \note Scaling of z values via zValueScale() should be applied before the zValueFixedOffset().
+     */
+    double zValueFixedOffset() const { return mZValueFixedOffset; }
+
+    /**
+     * Sets the function to call to test if the rendering is canceled.
+     */
+    void setIsCanceledCallback( const std::function< bool() > &callback ) { mIsCanceledCallback = callback; }
+
+    /**
+     * Returns TRUE if the rendering is canceled.
+     */
+    bool isCanceled() const { return mIsCanceledCallback(); }
+
+  private:
+#ifdef SIP_RUN
+    QgsPointCloudRenderContext( const QgsPointCloudRenderContext &rh );
+#endif
+    QgsPointCloudAttributeCollection mAttributes;
+    std::unique_ptr<QgsPointCloud3DSymbol> mSymbol;
+    QgsPointCloudCategoryList mFilteredOutCategories;
+    double mZValueScale = 1.0;
+    double mZValueFixedOffset = 0;
+
+    std::function< bool() > mIsCanceledCallback;
+
+};
+
 
 /**
  * \ingroup core
@@ -83,9 +228,43 @@ class _3D_EXPORT QgsPointCloudLayer3DRenderer : public QgsAbstract3DRenderer
     void readXml( const QDomElement &elem, const QgsReadWriteContext &context ) override;
     void resolveReferences( const QgsProject &project ) override;
 
+    /**
+     * Returns the maximum screen error allowed when rendering the point cloud.
+     *
+     * Larger values result in a faster render with less points rendered.
+     *
+     * \see setMaximumScreenError()
+     */
+    double maximumScreenError() const;
+
+    /**
+     * Sets the maximum screen \a error allowed when rendering the point cloud.
+     *
+     * Larger values result in a faster render with less points rendered.
+     *
+     * \see maximumScreenError()
+     */
+    void setMaximumScreenError( double error );
+
+    /**
+     * Returns whether bounding boxes will be visible when rendering the point cloud.
+     *
+     * \see setShowBoundingBoxes()
+     */
+    bool showBoundingBoxes() const;
+
+    /**
+     * Sets whether bounding boxes will be visible when rendering the point cloud.
+     *
+     * \see showBoundingBoxes()
+     */
+    void setShowBoundingBoxes( bool showBoundingBoxes );
+
   private:
     QgsMapLayerRef mLayerRef; //!< Layer used to extract mesh data from
     std::unique_ptr< QgsPointCloud3DSymbol > mSymbol;
+    double mMaximumScreenError = 1.0;
+    bool mShowBoundingBoxes = false;
 
   private:
 #ifdef SIP_RUN

@@ -76,13 +76,13 @@ class TestQgsPointCloudRgbRenderer(unittest.TestCase):
 
         # for this point cloud, we should default to 0-65024 ranges with contrast enhancement
         self.assertEqual(layer.renderer().redContrastEnhancement().minimumValue(), 0)
-        self.assertEqual(layer.renderer().redContrastEnhancement().maximumValue(), 65024.0)
+        self.assertEqual(layer.renderer().redContrastEnhancement().maximumValue(), 65535.0)
         self.assertEqual(layer.renderer().redContrastEnhancement().contrastEnhancementAlgorithm(), QgsContrastEnhancement.StretchToMinimumMaximum)
         self.assertEqual(layer.renderer().greenContrastEnhancement().minimumValue(), 0)
-        self.assertEqual(layer.renderer().greenContrastEnhancement().maximumValue(), 65024.0)
+        self.assertEqual(layer.renderer().greenContrastEnhancement().maximumValue(), 65535.0)
         self.assertEqual(layer.renderer().greenContrastEnhancement().contrastEnhancementAlgorithm(), QgsContrastEnhancement.StretchToMinimumMaximum)
         self.assertEqual(layer.renderer().blueContrastEnhancement().minimumValue(), 0)
-        self.assertEqual(layer.renderer().blueContrastEnhancement().maximumValue(), 65024.0)
+        self.assertEqual(layer.renderer().blueContrastEnhancement().maximumValue(), 65535.0)
         self.assertEqual(layer.renderer().blueContrastEnhancement().contrastEnhancementAlgorithm(), QgsContrastEnhancement.StretchToMinimumMaximum)
 
     def testBasic(self):
@@ -170,7 +170,7 @@ class TestQgsPointCloudRgbRenderer(unittest.TestCase):
         renderer.setRedAttribute('r')
 
         rc = QgsRenderContext()
-        prc = QgsPointCloudRenderContext(rc, QgsVector3D(), QgsVector3D())
+        prc = QgsPointCloudRenderContext(rc, QgsVector3D(), QgsVector3D(), 1, 0)
 
         self.assertEqual(renderer.usedAttributes(prc), {'r', 'g', 'b'})
 

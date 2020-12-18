@@ -21,6 +21,7 @@
 #include "qgspointcloudattributebyramprenderer.h"
 #include "qgsdoublevalidator.h"
 #include "qgsstyle.h"
+#include "qgspointcloudlayerelevationproperties.h"
 
 ///@cond PRIVATE
 
@@ -29,8 +30,11 @@ QgsPointCloudAttributeByRampRendererWidget::QgsPointCloudAttributeByRampRenderer
 {
   setupUi( this );
 
-  mAttributeComboBox->setAllowEmptyAttributeName( true );
+  mAttributeComboBox->setAllowEmptyAttributeName( false );
   mAttributeComboBox->setFilters( QgsPointCloudAttributeProxyModel::Numeric );
+
+  mMinSpin->setShowClearButton( false );
+  mMaxSpin->setShowClearButton( false );
 
   if ( layer )
   {
@@ -103,8 +107,18 @@ void QgsPointCloudAttributeByRampRendererWidget::attributeChanged()
       mProviderMin = std::numeric_limits< double >::quiet_NaN();
       mProviderMax = std::numeric_limits< double >::quiet_NaN();
     }
+
+    if ( mAttributeComboBox->currentAttribute().compare( QLatin1String( "z" ), Qt::CaseInsensitive ) == 0 )
+    {
+      const double zScale = static_cast< const QgsPointCloudLayerElevationProperties * >( mLayer->elevationProperties() )->zScale();
+      const double zOffset = static_cast< const QgsPointCloudLayerElevationProperties * >( mLayer->elevationProperties() )->zOffset();
+      mProviderMin = mProviderMin * zScale + zOffset;
+      mProviderMax = mProviderMax * zScale + zOffset;
+    }
+
   }
   mScalarRecalculateMinMaxButton->setEnabled( !std::isnan( mProviderMin ) && !std::isnan( mProviderMax ) );
+  emitWidgetChanged();
 }
 
 void QgsPointCloudAttributeByRampRendererWidget::setMinMaxFromLayer()

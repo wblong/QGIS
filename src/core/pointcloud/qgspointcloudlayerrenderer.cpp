@@ -26,38 +26,61 @@
 #include "qgspointcloudrequest.h"
 #include "qgspointcloudattribute.h"
 #include "qgspointcloudrenderer.h"
+#include "qgspointcloudextentrenderer.h"
 #include "qgslogger.h"
+#include "qgspointcloudlayerelevationproperties.h"
 #include "qgsmessagelog.h"
 
 QgsPointCloudLayerRenderer::QgsPointCloudLayerRenderer( QgsPointCloudLayer *layer, QgsRenderContext &context )
   : QgsMapLayerRenderer( layer->id(), &context )
   , mLayer( layer )
+  , mLayerAttributes( layer->attributes() )
 {
   // TODO: we must not keep pointer to mLayer (it's dangerous) - we must copy anything we need for rendering
   // or use some locking to prevent read/write from multiple threads
-  if ( !mLayer || !mLayer->dataProvider() || !mLayer->dataProvider()->index() || !mLayer->renderer() )
+  if ( !mLayer || !mLayer->dataProvider() || !mLayer->renderer() )
     return;
 
   mRenderer.reset( mLayer->renderer()->clone() );
 
-  mScale = mLayer->dataProvider()->index()->scale();
-  mOffset = mLayer->dataProvider()->index()->offset();
+  if ( mLayer->dataProvider()->index() )
+  {
+    mScale = mLayer->dataProvider()->index()->scale();
+    mOffset = mLayer->dataProvider()->index()->offset();
+  }
+
+  if ( const QgsPointCloudLayerElevationProperties *elevationProps = dynamic_cast< const QgsPointCloudLayerElevationProperties * >( mLayer->elevationProperties() ) )
+  {
+    mZOffset = elevationProps->zOffset();
+    mZScale = elevationProps->zScale();
+  }
+
+  mCloudExtent = mLayer->dataProvider()->polygonBounds();
 }
 
 bool QgsPointCloudLayerRenderer::render()
 {
-  // TODO cache!?
-  QgsPointCloudIndex *pc = mLayer->dataProvider()->index();
-  if ( !pc )
-    return false;
-
-  QgsPointCloudRenderContext context( *renderContext(), mScale, mOffset );
+  QgsPointCloudRenderContext context( *renderContext(), mScale, mOffset, mZScale, mZOffset );
 
   // Set up the render configuration options
   QPainter *painter = context.renderContext().painter();
 
   QgsScopedQPainterState painterState( painter );
   context.renderContext().setPainterFlagsUsingContext( painter );
+
+  if ( mRenderer->type() == QLatin1String( "extent" ) )
+  {
+    // special case for extent only renderer!
+    mRenderer->startRender( context );
+    static_cast< QgsPointCloudExtentRenderer * >( mRenderer.get() )->renderExtent( mCloudExtent, context );
+    mRenderer->stopRender( context );
+    return true;
+  }
+
+  // TODO cache!?
+  QgsPointCloudIndex *pc = mLayer->dataProvider()->index();
+  if ( !pc || !pc->isValid() )
+    return false;
 
   mRenderer->startRender( context );
 
@@ -75,14 +98,14 @@ bool QgsPointCloudLayerRenderer::render()
     if ( mAttributes.indexOf( attribute ) >= 0 )
       continue; // don't re-add attributes we are already going to fetch
 
-    const int layerIndex = mLayer->attributes().indexOf( attribute );
+    const int layerIndex = mLayerAttributes.indexOf( attribute );
     if ( layerIndex < 0 )
     {
       QgsMessageLog::logMessage( QObject::tr( "Required attribute %1 not found in layer" ).arg( attribute ), QObject::tr( "Point Cloud" ) );
       continue;
     }
 
-    mAttributes.push_back( mLayer->attributes().at( layerIndex ) );
+    mAttributes.push_back( mLayerAttributes.at( layerIndex ) );
   }
 
   QgsPointCloudDataBounds db;
@@ -151,6 +174,13 @@ bool QgsPointCloudLayerRenderer::render()
   return true;
 }
 
+bool QgsPointCloudLayerRenderer::forceRasterRender() const
+{
+  // unless we are using the extent only renderer, point cloud layers should always be rasterized -- we don't want to export points as vectors
+  // to formats like PDF!
+  return mRenderer ? mRenderer->type() != QLatin1String( "extent" ) : false;
+}
+
 QList<IndexedPointCloudNode> QgsPointCloudLayerRenderer::traverseTree( const QgsPointCloudIndex *pc,
     const QgsRenderContext &context,
     IndexedPointCloudNode n,
@@ -168,7 +198,9 @@ QList<IndexedPointCloudNode> QgsPointCloudLayerRenderer::traverseTree( const Qgs
   if ( !context.extent().intersects( pc->nodeMapExtent( n ) ) )
     return nodes;
 
-  if ( !context.zRange().isInfinite() && !context.zRange().overlaps( pc->nodeZRange( n ) ) )
+  const QgsDoubleRange nodeZRange = pc->nodeZRange( n );
+  const QgsDoubleRange adjustedNodeZRange = QgsDoubleRange( nodeZRange.lower() + mZOffset, nodeZRange.upper() + mZOffset );
+  if ( !context.zRange().isInfinite() && !context.zRange().overlaps( adjustedNodeZRange ) )
     return nodes;
 
   nodes.append( n );

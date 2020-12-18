@@ -38,10 +38,14 @@ QgsPointCloudLayer::QgsPointCloudLayer( const QString &path,
   : QgsMapLayer( QgsMapLayerType::PointCloudLayer, baseName, path )
   , mElevationProperties( new QgsPointCloudLayerElevationProperties( this ) )
 {
+
   if ( !path.isEmpty() && !providerLib.isEmpty() )
   {
     QgsDataProvider::ProviderOptions providerOptions { options.transformContext };
     setDataSource( path, baseName, providerLib, providerOptions, options.loadDefaultStyle );
+
+    if ( !options.skipIndexGeneration && mDataProvider && mDataProvider->isValid() )
+      mDataProvider.get()->generateIndex();
   }
 
   setLegend( QgsMapLayerLegend::defaultPointCloudLegend( this ) );
@@ -273,10 +277,14 @@ void QgsPointCloudLayer::setTransformContext( const QgsCoordinateTransformContex
     mDataProvider->setTransformContext( transformContext );
 }
 
-void QgsPointCloudLayer::setDataSource( const QString &dataSource, const QString &baseName, const QString &provider, const QgsDataProvider::ProviderOptions &options, bool loadDefaultStyleFlag )
+void QgsPointCloudLayer::setDataSource( const QString &dataSource, const QString &baseName, const QString &provider,
+                                        const QgsDataProvider::ProviderOptions &options, bool loadDefaultStyleFlag )
 {
   if ( mDataProvider )
+  {
     disconnect( mDataProvider.get(), &QgsPointCloudDataProvider::dataChanged, this, &QgsPointCloudLayer::dataChanged );
+    disconnect( mDataProvider.get(), &QgsPointCloudDataProvider::indexGenerationStateChanged, this, &QgsPointCloudLayer::onPointCloudIndexGenerationStateChanged );
+  }
 
   setName( baseName );
   mProviderKey = provider;
@@ -308,7 +316,12 @@ void QgsPointCloudLayer::setDataSource( const QString &dataSource, const QString
     return;
   }
 
+  connect( mDataProvider.get(), &QgsPointCloudDataProvider::indexGenerationStateChanged, this, &QgsPointCloudLayer::onPointCloudIndexGenerationStateChanged );
+  connect( mDataProvider.get(), &QgsPointCloudDataProvider::dataChanged, this, &QgsPointCloudLayer::dataChanged );
+
+  // Load initial extent, crs and renderer
   setCrs( mDataProvider->crs() );
+  setExtent( mDataProvider->extent() );
 
   if ( !mRenderer || loadDefaultStyleFlag )
   {
@@ -341,10 +354,21 @@ void QgsPointCloudLayer::setDataSource( const QString &dataSource, const QString
     }
   }
 
-  connect( mDataProvider.get(), &QgsPointCloudDataProvider::dataChanged, this, &QgsPointCloudLayer::dataChanged );
-
   emit dataSourceChanged();
   triggerRepaint();
+}
+
+void QgsPointCloudLayer::onPointCloudIndexGenerationStateChanged( QgsPointCloudDataProvider::PointCloudIndexGenerationState state )
+{
+  if ( state == QgsPointCloudDataProvider::Indexed )
+  {
+    mDataProvider.get()->loadIndex();
+    if ( mRenderer->type() == QLatin1String( "extent" ) )
+    {
+      setRenderer( QgsApplication::pointCloudRendererRegistry()->defaultRenderer( mDataProvider.get() ) );
+    }
+    triggerRepaint();
+  }
 }
 
 QString QgsPointCloudLayer::loadDefaultStyle( bool &resultFlag )
@@ -421,6 +445,86 @@ QString QgsPointCloudLayer::htmlMetadata() const
                 + tr( "Point count" ) + QStringLiteral( "</td><td>" )
                 + ( pointCount < 0 ? tr( "unknown" ) : locale.toString( static_cast<qlonglong>( pointCount ) ) )
                 + QStringLiteral( "</td></tr>\n" );
+
+  const QVariantMap originalMetadata = mDataProvider ? mDataProvider->originalMetadata() : QVariantMap();
+
+  if ( originalMetadata.value( QStringLiteral( "creation_year" ) ).toInt() > 0 && originalMetadata.contains( QStringLiteral( "creation_doy" ) ) )
+  {
+    QDate creationDate( originalMetadata.value( QStringLiteral( "creation_year" ) ).toInt(), 1, 1 );
+    creationDate = creationDate.addDays( originalMetadata.value( QStringLiteral( "creation_doy" ) ).toInt() );
+
+    myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                  + tr( "Creation date" ) + QStringLiteral( "</td><td>" )
+                  + creationDate.toString( Qt::ISODate )
+                  + QStringLiteral( "</td></tr>\n" );
+  }
+  if ( originalMetadata.contains( QStringLiteral( "major_version" ) ) && originalMetadata.contains( QStringLiteral( "minor_version" ) ) )
+  {
+    myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                  + tr( "Version" ) + QStringLiteral( "</td><td>" )
+                  + QStringLiteral( "%1.%2" ).arg( originalMetadata.value( QStringLiteral( "major_version" ) ).toString(),
+                      originalMetadata.value( QStringLiteral( "minor_version" ) ).toString() )
+                  + QStringLiteral( "</td></tr>\n" );
+  }
+
+  if ( !originalMetadata.value( QStringLiteral( "dataformat_id" ) ).toString().isEmpty() )
+  {
+    myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                  + tr( "Data format" ) + QStringLiteral( "</td><td>" )
+                  + QStringLiteral( "%1 (%2)" ).arg( QgsPointCloudDataProvider::translatedDataFormatIds().value( originalMetadata.value( QStringLiteral( "dataformat_id" ) ).toInt() ),
+                      originalMetadata.value( QStringLiteral( "dataformat_id" ) ).toString() ).trimmed()
+                  + QStringLiteral( "</td></tr>\n" );
+  }
+
+  myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                + tr( "Scale X" ) + QStringLiteral( "</td><td>" )
+                + QString::number( originalMetadata.value( QStringLiteral( "scale_x" ) ).toDouble() )
+                + QStringLiteral( "</td></tr>\n" );
+  myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                + tr( "Scale Y" ) + QStringLiteral( "</td><td>" )
+                + QString::number( originalMetadata.value( QStringLiteral( "scale_y" ) ).toDouble() )
+                + QStringLiteral( "</td></tr>\n" );
+  myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                + tr( "Scale Z" ) + QStringLiteral( "</td><td>" )
+                + QString::number( originalMetadata.value( QStringLiteral( "scale_z" ) ).toDouble() )
+                + QStringLiteral( "</td></tr>\n" );
+
+  myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                + tr( "Offset X" ) + QStringLiteral( "</td><td>" )
+                + QString::number( originalMetadata.value( QStringLiteral( "offset_x" ) ).toDouble() )
+                + QStringLiteral( "</td></tr>\n" );
+  myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                + tr( "Offset Y" ) + QStringLiteral( "</td><td>" )
+                + QString::number( originalMetadata.value( QStringLiteral( "offset_y" ) ).toDouble() )
+                + QStringLiteral( "</td></tr>\n" );
+  myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                + tr( "Offset Z" ) + QStringLiteral( "</td><td>" )
+                + QString::number( originalMetadata.value( QStringLiteral( "offset_z" ) ).toDouble() )
+                + QStringLiteral( "</td></tr>\n" );
+
+  if ( !originalMetadata.value( QStringLiteral( "project_id" ) ).toString().isEmpty() )
+  {
+    myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                  + tr( "Project ID" ) + QStringLiteral( "</td><td>" )
+                  + originalMetadata.value( QStringLiteral( "project_id" ) ).toString()
+                  + QStringLiteral( "</td></tr>\n" );
+  }
+
+  if ( !originalMetadata.value( QStringLiteral( "system_id" ) ).toString().isEmpty() )
+  {
+    myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                  + tr( "System ID" ) + QStringLiteral( "</td><td>" )
+                  + originalMetadata.value( QStringLiteral( "system_id" ) ).toString()
+                  + QStringLiteral( "</td></tr>\n" );
+  }
+
+  if ( !originalMetadata.value( QStringLiteral( "software_id" ) ).toString().isEmpty() )
+  {
+    myMetadata += QStringLiteral( "<tr><td class=\"highlight\">" )
+                  + tr( "Software ID" ) + QStringLiteral( "</td><td>" )
+                  + originalMetadata.value( QStringLiteral( "software_id" ) ).toString()
+                  + QStringLiteral( "</td></tr>\n" );
+  }
 
   // End Provider section
   myMetadata += QLatin1String( "</table>\n<br><br>" );

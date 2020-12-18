@@ -27,11 +27,12 @@
 #include "qgsphongmaterialsettings.h"
 
 #include "qgspointcloud3dsymbol.h"
-
 #include "qgsapplication.h"
 #include "qgs3dsymbolregistry.h"
 #include "qgspointcloudattribute.h"
 #include "qgspointcloudrequest.h"
+#include "qgscolorramptexture.h"
+#include "qgspointcloud3dsymbol_p.h"
 
 #include <QtConcurrent>
 #include <Qt3DRender/QAttribute>
@@ -42,182 +43,20 @@
 
 ///@cond PRIVATE
 
-QgsPointCloud3DGeometry::QgsPointCloud3DGeometry( Qt3DCore::QNode *parent, const QgsPointCloud3DSymbolHandler::PointData &data )
-  : Qt3DRender::QGeometry( parent )
-  , mPositionAttribute( new Qt3DRender::QAttribute( this ) )
-  , mClassAttribute( new Qt3DRender::QAttribute( this ) )
-#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
-  , mVertexBuffer( new Qt3DRender::QBuffer( Qt3DRender::QBuffer::VertexBuffer, this ) )
-#else
-  , mVertexBuffer( new Qt3DRender::QBuffer( this ) )
-#endif
-{
-  mPositionAttribute->setAttributeType( Qt3DRender::QAttribute::VertexAttribute );
-  mPositionAttribute->setBuffer( mVertexBuffer );
-  mPositionAttribute->setVertexBaseType( Qt3DRender::QAttribute::Float );
-  mPositionAttribute->setVertexSize( 3 );
-  mPositionAttribute->setName( Qt3DRender::QAttribute::defaultPositionAttributeName() );
-  mPositionAttribute->setByteOffset( 0 );
-  mPositionAttribute->setByteStride( 16 );
 
-  mClassAttribute->setAttributeType( Qt3DRender::QAttribute::VertexAttribute );
-  mClassAttribute->setBuffer( mVertexBuffer );
-  mClassAttribute->setVertexBaseType( Qt3DRender::QAttribute::Float );
-  mClassAttribute->setVertexSize( 1 );
-  mClassAttribute->setName( "cls" );
-  mClassAttribute->setByteOffset( 12 );
-  mClassAttribute->setByteStride( 16 );
+///////////////
 
-  addAttribute( mPositionAttribute );
-  addAttribute( mClassAttribute );
-
-
-  makeVertexBuffer( data );
-}
-
-void QgsPointCloud3DGeometry::makeVertexBuffer( const QgsPointCloud3DSymbolHandler::PointData &data )
-{
-  QByteArray vertexBufferData;
-  vertexBufferData.resize( data.positions.size() * 4 * sizeof( float ) );
-  float *rawVertexArray = reinterpret_cast<float *>( vertexBufferData.data() );
-  int idx = 0;
-  Q_ASSERT( data.positions.count() == data.classes.count() );
-  for ( int i = 0; i < data.positions.size(); ++i )
-  {
-    rawVertexArray[idx++] = data.positions.at( i ).x();
-    rawVertexArray[idx++] = data.positions.at( i ).y();
-    rawVertexArray[idx++] = data.positions.at( i ).z();
-    rawVertexArray[idx++] = data.classes.at( i );
-  }
-
-  mVertexCount = data.positions.size();
-  mVertexBuffer->setData( vertexBufferData );
-}
-
-
-QgsPointCloud3DSymbolHandler::QgsPointCloud3DSymbolHandler( QgsPointCloud3DSymbol *symbol )
-{
-  mSymbol.reset( symbol );
-}
-
-bool QgsPointCloud3DSymbolHandler::prepare( const Qgs3DRenderContext &context )
-{
-  Q_UNUSED( context )
-  return true;
-}
-
-void QgsPointCloud3DSymbolHandler::processNode( QgsPointCloudIndex *pc, const IndexedPointCloudNode &n, const Qgs3DRenderContext &context )
-{
-  QgsPointCloudAttributeCollection attributes;
-  attributes.push_back( QgsPointCloudAttribute( QStringLiteral( "X" ), QgsPointCloudAttribute::Int32 ) );
-  attributes.push_back( QgsPointCloudAttribute( QStringLiteral( "Y" ), QgsPointCloudAttribute::Int32 ) );
-  attributes.push_back( QgsPointCloudAttribute( QStringLiteral( "Z" ), QgsPointCloudAttribute::Int32 ) );
-  attributes.push_back( QgsPointCloudAttribute( QStringLiteral( "Classification" ), QgsPointCloudAttribute::Char ) );
-  QgsPointCloudRequest request;
-  request.setAttributes( attributes );
-  std::unique_ptr<QgsPointCloudBlock> block( pc->nodeData( n, request ) );
-  if ( !block )
-    return;
-
-  const char *ptr = block->data();
-  int count = block->pointCount();
-  const std::size_t recordSize = attributes.pointRecordSize();
-
-  const QgsVector3D scale = pc->scale();
-  const QgsVector3D offset = pc->offset();
-
-  for ( int i = 0; i < count; ++i )
-  {
-    qint32 ix = *( qint32 * )( ptr + i * recordSize + 0 );
-    qint32 iy = *( qint32 * )( ptr + i * recordSize + 4 );
-    qint32 iz = *( qint32 * )( ptr + i * recordSize + 8 );
-    char cls = *( char * )( ptr + i * recordSize + 12 );
-
-    double x = offset.x() + scale.x() * ix;
-    double y = offset.y() + scale.y() * iy;
-    double z = offset.z() + scale.z() * iz;
-    QVector3D point( x, y, z );
-    QgsVector3D p = context.map().mapToWorldCoordinates( point );
-    outNormal.positions.push_back( QVector3D( p.x(), p.y(), p.z() ) );
-    outNormal.classes.push_back( cls );
-  }
-}
-
-void QgsPointCloud3DSymbolHandler::finalize( Qt3DCore::QEntity *parent, const Qgs3DRenderContext &context )
-{
-  makeEntity( parent, context, outNormal, false );
-}
-
-void QgsPointCloud3DSymbolHandler::makeEntity( Qt3DCore::QEntity *parent, const Qgs3DRenderContext &context, QgsPointCloud3DSymbolHandler::PointData &out, bool selected )
-{
-  Q_UNUSED( selected )
-  Q_UNUSED( context )
-
-  if ( out.positions.empty() )
-    return;
-
-  // Geometry
-  QgsPointCloud3DGeometry *geom = new QgsPointCloud3DGeometry( parent, out );
-  Qt3DRender::QGeometryRenderer *gr = new Qt3DRender::QGeometryRenderer;
-  gr->setPrimitiveType( Qt3DRender::QGeometryRenderer::Points );
-  gr->setVertexCount( out.positions.count() );
-  gr->setGeometry( geom );
-
-  // Transform
-  Qt3DCore::QTransform *tr = new Qt3DCore::QTransform;
-
-  // Material
-  Qt3DRender::QMaterial *mat = new Qt3DRender::QMaterial;
-
-  Qt3DRender::QParameter *pointSizeParameter = new Qt3DRender::QParameter( "u_pointSize", QVariant::fromValue( mSymbol->pointSize() ) );
-  mat->addParameter( pointSizeParameter );
-
-  Qt3DRender::QShaderProgram *shaderProgram = new Qt3DRender::QShaderProgram( mat );
-  shaderProgram->setVertexShaderCode( Qt3DRender::QShaderProgram::loadSource( QUrl( QStringLiteral( "qrc:/shaders/pointcloud.vert" ) ) ) );
-  shaderProgram->setFragmentShaderCode( Qt3DRender::QShaderProgram::loadSource( QUrl( QStringLiteral( "qrc:/shaders/pointcloud.frag" ) ) ) );
-
-  Qt3DRender::QRenderPass *renderPass = new Qt3DRender::QRenderPass( mat );
-  renderPass->setShaderProgram( shaderProgram );
-
-  Qt3DRender::QPointSize *pointSize = new Qt3DRender::QPointSize( renderPass );
-  pointSize->setSizeMode( Qt3DRender::QPointSize::Programmable );  // supported since OpenGL 3.2
-  pointSize->setValue( mSymbol->pointSize() );
-  renderPass->addRenderState( pointSize );
-
-  // without this filter the default forward renderer would not render this
-  Qt3DRender::QFilterKey *filterKey = new Qt3DRender::QFilterKey;
-  filterKey->setName( QStringLiteral( "renderingStyle" ) );
-  filterKey->setValue( "forward" );
-
-  Qt3DRender::QTechnique *technique = new Qt3DRender::QTechnique;
-  technique->addRenderPass( renderPass );
-  technique->addFilterKey( filterKey );
-  technique->graphicsApiFilter()->setApi( Qt3DRender::QGraphicsApiFilter::OpenGL );
-  technique->graphicsApiFilter()->setProfile( Qt3DRender::QGraphicsApiFilter::CoreProfile );
-  technique->graphicsApiFilter()->setMajorVersion( 3 );
-  technique->graphicsApiFilter()->setMinorVersion( 1 );
-
-  Qt3DRender::QEffect *eff = new Qt3DRender::QEffect;
-  eff->addTechnique( technique );
-  mat->setEffect( eff );
-
-  // All together
-  Qt3DCore::QEntity *entity = new Qt3DCore::QEntity;
-  entity->addComponent( gr );
-  entity->addComponent( tr );
-  entity->addComponent( mat );
-  entity->setParent( parent );
-  // cppcheck wrongly believes entity will leak
-  // cppcheck-suppress memleak
-}
-
-
-QgsPointCloudLayerChunkLoader::QgsPointCloudLayerChunkLoader( const QgsPointCloudLayerChunkLoaderFactory *factory, QgsChunkNode *node, QgsPointCloud3DSymbol *symbol )
+QgsPointCloudLayerChunkLoader::QgsPointCloudLayerChunkLoader( const QgsPointCloudLayerChunkLoaderFactory *factory, QgsChunkNode *node, std::unique_ptr< QgsPointCloud3DSymbol > symbol,
+    double zValueScale, double zValueOffset )
   : QgsChunkLoader( node )
   , mFactory( factory )
-  , mContext( factory->mMap )
+  , mContext( factory->mMap, std::move( symbol ), zValueScale, zValueOffset )
 {
+  mContext.setIsCanceledCallback( [this] { return mCanceled; } );
+
   QgsPointCloudIndex *pc = mFactory->mPointCloudIndex;
+  mContext.setAttributes( pc->attributes() );
+
   QgsChunkNodeId nodeId = node->tileId();
   IndexedPointCloudNode pcNode( nodeId.d, nodeId.x, nodeId.y, nodeId.z );
 
@@ -225,7 +64,18 @@ QgsPointCloudLayerChunkLoader::QgsPointCloudLayerChunkLoader( const QgsPointClou
 
   QgsDebugMsgLevel( QStringLiteral( "loading entity %1" ).arg( node->tileId().text() ), 2 );
 
-  mHandler.reset( new QgsPointCloud3DSymbolHandler( symbol ) );
+  if ( mContext.symbol()->symbolType() == QLatin1String( "single-color" ) )
+    mHandler.reset( new QgsSingleColorPointCloud3DSymbolHandler() );
+  else if ( mContext.symbol()->symbolType() == QLatin1String( "color-ramp" ) )
+    mHandler.reset( new QgsColorRampPointCloud3DSymbolHandler() );
+  else if ( mContext.symbol()->symbolType() == QLatin1String( "rgb" ) )
+    mHandler.reset( new QgsRGBPointCloud3DSymbolHandler() );
+  else if ( mContext.symbol()->symbolType() == QLatin1String( "classification" ) )
+  {
+    mHandler.reset( new QgsClassificationPointCloud3DSymbolHandler() );
+    const QgsClassificationPointCloud3DSymbol *classificationSymbol = dynamic_cast<const QgsClassificationPointCloud3DSymbol *>( mContext.symbol() );
+    mContext.setFilteredOutCategories( classificationSymbol->getFilteredOutCategories() );
+  }
 
   //
   // this will be run in a background thread
@@ -279,9 +129,12 @@ Qt3DCore::QEntity *QgsPointCloudLayerChunkLoader::createEntity( Qt3DCore::QEntit
 ///////////////
 
 
-QgsPointCloudLayerChunkLoaderFactory::QgsPointCloudLayerChunkLoaderFactory( const Qgs3DMapSettings &map, QgsPointCloudIndex *pc, QgsPointCloud3DSymbol *symbol )
+QgsPointCloudLayerChunkLoaderFactory::QgsPointCloudLayerChunkLoaderFactory( const Qgs3DMapSettings &map, QgsPointCloudIndex *pc, QgsPointCloud3DSymbol *symbol,
+    double zValueScale, double zValueOffset )
   : mMap( map )
   , mPointCloudIndex( pc )
+  , mZValueScale( zValueScale )
+  , mZValueOffset( zValueOffset )
 {
   mSymbol.reset( symbol );
 }
@@ -290,14 +143,14 @@ QgsChunkLoader *QgsPointCloudLayerChunkLoaderFactory::createChunkLoader( QgsChun
 {
   QgsChunkNodeId id = node->tileId();
   Q_ASSERT( mPointCloudIndex->hasNode( IndexedPointCloudNode( id.d, id.x, id.y, id.z ) ) );
-  return new QgsPointCloudLayerChunkLoader( this, node, dynamic_cast<QgsPointCloud3DSymbol *>( mSymbol->clone() ) );
+  return new QgsPointCloudLayerChunkLoader( this, node, std::unique_ptr< QgsPointCloud3DSymbol >( static_cast< QgsPointCloud3DSymbol * >( mSymbol->clone() ) ), mZValueScale, mZValueOffset );
 }
 
-QgsAABB nodeBoundsToAABB( QgsPointCloudDataBounds nodeBounds, QgsVector3D offset, QgsVector3D scale, const Qgs3DMapSettings &map );
+QgsAABB nodeBoundsToAABB( QgsPointCloudDataBounds nodeBounds, QgsVector3D offset, QgsVector3D scale, const Qgs3DMapSettings &map, double zValueOffset );
 
 QgsChunkNode *QgsPointCloudLayerChunkLoaderFactory::createRootNode() const
 {
-  QgsAABB bbox = nodeBoundsToAABB( mPointCloudIndex->nodeBounds( IndexedPointCloudNode( 0, 0, 0, 0 ) ), mPointCloudIndex->offset(), mPointCloudIndex->scale(), mMap );
+  QgsAABB bbox = nodeBoundsToAABB( mPointCloudIndex->nodeBounds( IndexedPointCloudNode( 0, 0, 0, 0 ) ), mPointCloudIndex->offset(), mPointCloudIndex->scale(), mMap, mZValueOffset );
   float error = mPointCloudIndex->nodeError( IndexedPointCloudNode( 0, 0, 0, 0 ) );
   return new QgsChunkNode( QgsChunkNodeId( 0, 0, 0, 0 ), bbox, error );
 }
@@ -336,11 +189,11 @@ QVector<QgsChunkNode *> QgsPointCloudLayerChunkLoaderFactory::createChildren( Qg
 ///////////////
 
 
-QgsAABB nodeBoundsToAABB( QgsPointCloudDataBounds nodeBounds, QgsVector3D offset, QgsVector3D scale, const Qgs3DMapSettings &map )
+QgsAABB nodeBoundsToAABB( QgsPointCloudDataBounds nodeBounds, QgsVector3D offset, QgsVector3D scale, const Qgs3DMapSettings &map, double zValueOffset )
 {
   // TODO: reprojection from layer to map coordinates if needed
-  QgsVector3D extentMin3D( nodeBounds.xMin() * scale.x() + offset.x(), nodeBounds.yMin() * scale.y() + offset.y(), nodeBounds.zMin() * scale.z() + offset.z() );
-  QgsVector3D extentMax3D( nodeBounds.xMax() * scale.x() + offset.x(), nodeBounds.yMax() * scale.y() + offset.y(), nodeBounds.zMax() * scale.z() + offset.z() );
+  QgsVector3D extentMin3D( nodeBounds.xMin() * scale.x() + offset.x(), nodeBounds.yMin() * scale.y() + offset.y(), nodeBounds.zMin() * scale.z() + offset.z() + zValueOffset );
+  QgsVector3D extentMax3D( nodeBounds.xMax() * scale.x() + offset.x(), nodeBounds.yMax() * scale.y() + offset.y(), nodeBounds.zMax() * scale.z() + offset.z() + zValueOffset );
   QgsVector3D worldExtentMin3D = Qgs3DUtils::mapToWorldCoordinates( extentMin3D, map.origin() );
   QgsVector3D worldExtentMax3D = Qgs3DUtils::mapToWorldCoordinates( extentMax3D, map.origin() );
   QgsAABB rootBbox( worldExtentMin3D.x(), worldExtentMin3D.y(), worldExtentMin3D.z(),
@@ -349,12 +202,12 @@ QgsAABB nodeBoundsToAABB( QgsPointCloudDataBounds nodeBounds, QgsVector3D offset
 }
 
 
-QgsPointCloudLayerChunkedEntity::QgsPointCloudLayerChunkedEntity( QgsPointCloudIndex *pc, const Qgs3DMapSettings &map, QgsPointCloud3DSymbol *symbol )
-  : QgsChunkedEntity( 5, // max. allowed screen error (in pixels)  -- // TODO
-                      new QgsPointCloudLayerChunkLoaderFactory( map, pc, symbol ), true )
+QgsPointCloudLayerChunkedEntity::QgsPointCloudLayerChunkedEntity( QgsPointCloudIndex *pc, const Qgs3DMapSettings &map, QgsPointCloud3DSymbol *symbol, float maxScreenError, bool showBoundingBoxes, double zValueScale, double zValueOffset )
+  : QgsChunkedEntity( maxScreenError,
+                      new QgsPointCloudLayerChunkLoaderFactory( map, pc, symbol, zValueScale, zValueOffset ), true )
 {
   setUsingAdditiveStrategy( true );
-  setShowBoundingBoxes( false );
+  setShowBoundingBoxes( showBoundingBoxes );
 }
 
 QgsPointCloudLayerChunkedEntity::~QgsPointCloudLayerChunkedEntity()

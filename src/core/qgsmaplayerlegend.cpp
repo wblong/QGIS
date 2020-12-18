@@ -27,6 +27,8 @@
 #include "qgsdiagramrenderer.h"
 #include "qgssymbollayerutils.h"
 #include "qgspointcloudrenderer.h"
+#include "qgsrasterrenderer.h"
+#include "qgscolorramplegendnode.h"
 
 QgsMapLayerLegend::QgsMapLayerLegend( QObject *parent )
   : QObject( parent )
@@ -426,28 +428,8 @@ QList<QgsLayerTreeModelLegendNode *> QgsDefaultRasterLayerLegend::createLayerTre
     nodes << new QgsWmsLegendNode( nodeLayer );
   }
 
-  QgsLegendColorList rasterItemList = mLayer->legendSymbologyItems();
-  if ( rasterItemList.isEmpty() )
-    return nodes;
-
-  // Paletted raster may have many colors, for example UInt16 may have 65536 colors
-  // and it is very slow, so we limit max count
-  int count = 0;
-  int max_count = 1000;
-
-  for ( QgsLegendColorList::const_iterator itemIt = rasterItemList.constBegin();
-        itemIt != rasterItemList.constEnd(); ++itemIt, ++count )
-  {
-    nodes << new QgsRasterSymbolLegendNode( nodeLayer, itemIt->second, itemIt->first );
-
-    if ( count == max_count )
-    {
-      QString label = tr( "following %1 items\nnot displayed" ).arg( rasterItemList.size() - max_count );
-      nodes << new QgsSimpleLegendNode( nodeLayer, label );
-      break;
-    }
-  }
-
+  if ( mLayer->renderer() )
+    nodes.append( mLayer->renderer()->createLegendNodes( nodeLayer ) );
   return nodes;
 }
 
@@ -490,11 +472,28 @@ QList<QgsLayerTreeModelLegendNode *> QgsDefaultMeshLayerLegend::createLayerTreeM
   if ( indexScalar > -1 )
   {
     QgsMeshRendererScalarSettings settings = rendererSettings.scalarSettings( indexScalar );
-    QgsLegendColorList items;
-    settings.colorRampShader().legendSymbologyItems( items );
-    for ( const QPair< QString, QColor > &item : qgis::as_const( items ) )
+    const QgsColorRampShader shader = settings.colorRampShader();
+    switch ( shader.colorRampType() )
     {
-      nodes << new QgsRasterSymbolLegendNode( nodeLayer, item.second, item.first );
+      case QgsColorRampShader::Interpolated:
+        // for interpolated shaders we use a ramp legend node
+        nodes << new QgsColorRampLegendNode( nodeLayer, shader.sourceColorRamp()->clone(),
+                                             QString::number( shader.minimumValue() ),
+                                             QString::number( shader.maximumValue() ) );
+        break;
+
+      case QgsColorRampShader::Discrete:
+      case QgsColorRampShader::Exact:
+      {
+        // for all others we use itemised lists
+        QgsLegendColorList items;
+        settings.colorRampShader().legendSymbologyItems( items );
+        for ( const QPair< QString, QColor > &item : items )
+        {
+          nodes << new QgsRasterSymbolLegendNode( nodeLayer, item.second, item.first );
+        }
+        break;
+      }
     }
   }
 
