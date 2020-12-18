@@ -5,3 +5,6 @@ psycopg2
 numpy
 pyyaml
 future
+jinja2
+owslib
+pygments
